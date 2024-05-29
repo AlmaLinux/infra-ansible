@@ -1,0 +1,48 @@
+# {{ ansible_managed }}
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
+# Full configuration options can be found at https://www.vaultproject.io/docs/configuration
+
+ui = true
+
+cluster_addr  = "https://{{ ansible_all_ipv4_addresses | ansible.utils.ipaddr(hashivault_private_subnet) | first }}:8201"
+api_addr      = "https://{{ hashivault_domain }}:8200"
+
+disable_mlock = {{ hashivault_disable_mlock | default('false') }}
+
+{% if hashivault_storage_type == 'file' %}
+storage "file" {
+  path = "/opt/vault/data"
+}
+{% endif %}
+
+{% if hashivault_storage_type == 'raft' %}
+storage "raft" {
+  path = "/opt/vault/data"
+  {% for raft_node in groups['hashivault'] %}
+  
+  retry_join {
+    leader_tls_servername = "{{ raft_node }}"
+    leader_api_addr = "https://{{ raft_node }}:8200"
+  }
+  
+  {% endfor %}
+
+}
+{% endif %}
+
+# HTTPS listener
+listener "tcp" {
+  address       = "{{ hashivault_vault_listener_address }}"
+  tls_cert_file = "/opt/vault/tls/fullchain.pem"
+  tls_key_file  = "/opt/vault/tls/privkey.pem"
+  # tls 1.3 requirement breaks aws health checks
+  # do not enable this
+  # tls_min_version = "tls13"
+}
+
+telemetry {
+  disable_hostname = true
+  prometheus_retention_time = "12h"
+}

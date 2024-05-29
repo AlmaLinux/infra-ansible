@@ -1,0 +1,26 @@
+---
+# - name: Enable headscale Copr repository
+#  community.general.copr:
+#    chroot: rhel9-x86_64
+#    host: copr.fedorainfracloud.org
+#    state: enabled
+#    name: jonathanspw/headscale
+#  tags:
+#    - headscale
+
+
+- name: Enable headscale copr repository
+  ansible.builtin.yum_repository:
+    name: copr:copr.fedorainfracloud.org:jonathanspw:headscale
+    description: Copr repo for headscale owned by jonathanspw
+    baseurl: https://download.copr.fedorainfracloud.org/results/jonathanspw/headscale/rhel-9-$basearch/
+    gpgkey: https://download.copr.fedorainfracloud.org/results/jonathanspw/headscale/pubkey.gpg
+    enabled: true
+    gpgcheck: true
+
+- name: Install headscale
+  ansible.builtin.dnf:
+    name: headscale
+    state: present
+  tags:
+    - headscale

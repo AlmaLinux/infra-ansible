@@ -1,0 +1,32 @@
+---
+mirror_custom_ssl: false
+mirror_path: /mirror
+# use a /almalinux subdir within mirror_path if true
+mirror_path_use_subdir: true
+
+# inspiration from https://github.com/PhirePhly/micromirrors/blob/main/files/sysctl.performancetune.conf
+mirror_sysctl_performance:
+  - name: net.core.default_qdisc
+    value: fq_codel
+  - name: net.ipv4.tcp_congestion_control
+    value: bbr
+  - name: net.core.rmem_max
+    value: 134217728
+  - name: net.core.wmem_max
+    value: 134217728
+  - name: net.ipv4.tcp_rmem
+    value: 4096 87380 67108864
+  - name: net.ipv4.tcp_wmem
+    value: 4096 87380 67108864
+  - name: net.ipv4.tcp_mtu_probing
+    value: 1
+  - name: net.ipv4.tcp_fastopen
+    value: 1
+  - name: net.ipv4.tcp_no_metrics_save
+    value: 1
+  - name: net.ipv4.tcp_slow_start_after_idle
+    value: 0
+  - name: net.ipv4.tcp_notsent_lowat
+    value: 1048576
+
+mirror_create_fs: true

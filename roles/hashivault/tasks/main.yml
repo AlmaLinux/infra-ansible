@@ -1,0 +1,86 @@
+---
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Install HashiCorp repo
+  ansible.builtin.yum_repository:
+    name: hashicorp
+    description: Hashicorp Stable - $basearch
+    baseurl: https://rpm.releases.hashicorp.com/RHEL/$releasever/$basearch/stable
+    repo_gpgcheck: true
+    gpgkey: https://rpm.releases.hashicorp.com/gpg
+
+- name: Install yum versionlock plugin
+  ansible.builtin.package:
+    name: python3-dnf-plugin-versionlock
+    state: present
+
+- name: Remove versionlock from vault
+  community.general.yum_versionlock:
+    state: absent
+    name: vault
+  when: >
+    hashivault_vault_version is defined and hashivault_vault_version != '' and ansible_facts.packages['vault'] is defined
+    and '-'.join((ansible_facts.packages['vault'][0]['version'] | string, ansible_facts.packages['vault'][0]['release'])) != hashivault_vault_version
+
+- name: Install vault
+  ansible.builtin.package:
+    name: vault{{ '-' + hashivault_vault_version | default('') }}
+    state: present
+  register: install_vault
+
+- name: Ensures systemd override dir exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/vault.service.d
+    state: directory
+    mode: "0755"
+
+# https://developer.hashicorp.com/vault/tutorials/operations/production-hardening
+- name: Disable coredumps
+  ansible.builtin.template:
+    src: override.conf.j2
+    dest: /etc/systemd/system/vault.service.d/override.conf
+    mode: "0644"
+  notify:
+    - Reload systemd
+
+# locking to the older 1.14.x branch anticipating a move to openbao in the future
+- name: Lock vault to version {{ vault_version }}
+  community.general.yum_versionlock:
+    state: present
+    name:
+      - vault-{{ hashivault_vault_version }}
+  when: hashivault_vault_version is defined and hashivault_vault_version != '' and install_vault.changed
+
+- name: Run certbot
+  ansible.builtin.include_tasks: certbot.yml
+
+- name: Write vault.hcl
+  ansible.builtin.template:
+    src: vault.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+    mode: "0644"
+  register: config_written
+
+- name: Enable vault
+  ansible.builtin.systemd_service:
+    name: vault
+    enabled: true
+
+- name: Configure /etc/hosts
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure bashrc
+  ansible.builtin.lineinfile:
+    dest: ".bashrc"
+    line: export VAULT_ADDR=https://$(hostname):8200
+
+- name: Run vault configuration
+  ansible.builtin.include_tasks: configure_vault.yml
+  run_once: true

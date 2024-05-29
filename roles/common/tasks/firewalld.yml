@@ -1,0 +1,83 @@
+---
+- name: Install firewalld
+  ansible.builtin.dnf:
+    name:
+      - firewalld
+      - python3-firewall
+    state: present
+  tags:
+    - firewalld
+
+- name: Enable/start firewalld
+  ansible.builtin.systemd:
+    name: firewalld.service
+    state: started
+    enabled: true
+  tags:
+    - firewalld
+
+- name: Remove default services from public zone
+  ansible.posix.firewalld:
+    zone: public
+    state: disabled
+    permanent: true
+    immediate: true
+    service: "{{ item }}"
+  loop:
+    - cockpit
+    - dhcpv6-client
+  tags:
+    - firewalld
+
+- name: Allow SSH 22/tcp traffic
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    service: ssh
+  tags:
+    - firewalld
+
+# TODO: Cleanup how this is handled
+# whitelist_ips variable
+# - name: Combine host_vars/group_vars whitelist_ips
+#  ansible.builtin.set_fact:
+#    whitelist_ips: "{{ group_whitelist_ips|default([]) + host_whitelist_ips|default([]) }}"
+#  tags:
+#    - firewalld
+
+- name: Allow whitelist IP's in trusted zone
+  ansible.posix.firewalld:
+    zone: trusted
+    state: enabled
+    permanent: true
+    immediate: true
+    source: "{{ item }}"
+  loop: "{{ whitelist_ips }}"
+  tags:
+    - firewalld
+
+- name: Allow extra ports
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    port: "{{ item }}"
+  tags:
+    - firewalld
+  loop: "{{ firewalld_extra_allow_ports }}"
+  when: firewalld_extra_allow_ports is defined
+
+- name: Extra rich rules
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    rich_rule: "{{ item }}"
+  tags:
+    - firewalld
+  loop: "{{ firewalld_extra_rich_rules }}"
+  when: firewalld_extra_rich_rules is defined

@@ -1,0 +1,14 @@
+---
+# this is because the ipaclient role is not idempotent
+- name: Check if IPA client installed
+  ansible.builtin.stat:
+    path: /etc/ipa/ca.crt
+  register: ipa_client_installed
+
+- name: Configure freeipa client
+  vars:
+    ipaclient_reinstall: "{{ lookup('env', 'IPACLIENT_REINSTALL') | default(false) }}" # noqa var-naming[no-role-prefix]
+    state: present
+  ansible.builtin.include_role:
+    name: freeipa.ansible_freeipa.ipaclient
+  when: not ipa_client_installed.stat.exists or ipaclient_reinstall

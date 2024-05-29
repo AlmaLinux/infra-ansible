@@ -1,0 +1,4 @@
+---
+host_public_ports:
+  # zabbix
+  - 10050/tcp

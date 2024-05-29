@@ -1,0 +1,55 @@
+---
+firewalld_extra_allow_ports:
+  - "{{ hashivault_port }}/tcp"
+firewalld_extra_rich_rules:
+  - rule family="ipv4" source address="10.0.0.0/16" port protocol="tcp" port="8201" accept
+
+auth_ldap_userdn: cn=users,cn=accounts,dc=almalinux,dc=org
+auth_ldap_groupdn: cn=groups,cn=accounts,dc=almalinux,dc=org
+auth_ldap_binddn: uid=secrets,cn=sysaccounts,cn=etc,dc=almalinux,dc=org
+auth_ldap_url: >
+  ldaps://ipa01.awsuseast1.ipa.almalinux.org,ldaps://ipa02.awsuseast1.ipa.almalinux.org,
+  ldaps://ipa03.azureussouthcentral.ipa.almalinux.org,ldaps://ipa04.azureussouthcentral.ipa.almalinux.org
+auth_ldap_groupfilter: "{% raw %}(&(objectClass=posixGroup)(member=uid={{.Username}},cn=users,cn=accounts,dc=almalinux,dc=org)){% endraw %}"
+auth_ldap_groupattr: cn
+auth_ldap_userattr: uid
+auth_ldap_userfilter: |
+  "{% raw %}
+    (&
+      ({{.UserAttr}}={{.Username}})(objectClass=posixAccount)
+      (|
+        (memberOf=cn=sysadmin,cn=groups,cn=accounts,dc=almalinux,dc=org)
+        (memberOf=cn=admins,cn=groups,cn=accounts,dc=almalinux,dc=org)
+      )
+    )
+  {% endraw %}"
+auth_ldap_certificate_file: /etc/ipa/ca.crt
+
+hashivault_vault_listener_address: 0.0.0.0:{{ hashivault_port }}
+
+hashivault_policies:
+  sysadmin:
+    - path: /*
+      capabilities:
+        - create
+        - update
+        - patch
+        - read
+        - delete
+        - list
+  monitoring:
+    - path: /sys/metrics
+      capabilities:
+        - read
+        - list
+    - path: /auth/token/lookup-accessor
+      capabilities:
+        - read
+        - update
+
+hashivault_ldap_groups:
+  - name: sysadmin
+    policies:
+      - sysadmin
+
+hashivault_private_subnet: 10.0.0.0/16

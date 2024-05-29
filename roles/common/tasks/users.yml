@@ -1,0 +1,10 @@
+---
+# TODO: Make this more robust to handle user accounts + keys
+# TODO: Why isn't this working with loop?
+- name: Set authorized_keys for root
+  ansible.posix.authorized_key:
+    user: root
+    state: present
+    key: "{{ item }}"
+  with_items:
+    - "{{ ssh_authorized_keys }}"

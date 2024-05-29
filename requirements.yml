@@ -1,0 +1,10 @@
+---
+collections:
+    - name: devsec.hardening
+    - name: freeipa.ansible_freeipa
+    - name: community.hashi_vault
+
+roles:
+    - name: artis3n.tailscale
+    - name: ansible-modules-hashivault
+      src: git+https://github.com/TerryHowe/ansible-modules-hashivault.git

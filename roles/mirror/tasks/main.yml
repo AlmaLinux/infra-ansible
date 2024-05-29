@@ -1,0 +1,101 @@
+---
+- name: Install Caddy
+  ansible.builtin.dnf:
+    name: caddy
+    state: present
+  tags:
+    - caddy
+
+- name: Start/Enable Caddy
+  ansible.builtin.systemd:
+    name: caddy.service
+    state: started
+    enabled: true
+  tags:
+    - caddy
+
+- name: Distribute /etc/caddy/Caddyfile
+  ansible.builtin.template:
+    src: etc/caddy/Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    mode: "0600"
+    owner: caddy
+    group: caddy
+  notify: Restart caddy
+  tags:
+    - caddy
+
+- name: Allow http/https/ssh traffic through firewalld
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    service: "{{ item }}"
+  loop:
+    - http
+    - https
+    - ssh
+  tags:
+    - firewalld
+
+- name: Create mirror directory
+  ansible.builtin.file:
+    path: "{{ mirror_path }}"
+    state: directory
+    mode: "0755"
+  tags:
+    - bootstrap_mirror
+
+- name: Create XFS filesystem for mirror data
+  community.general.filesystem:
+    state: present
+    fstype: xfs
+    force: false
+    dev: "{{ mirror_dev_fs }}"
+  tags:
+    - bootstrap_mirror
+  when: mirror_create_fs
+
+- name: Add mirror FS to /etc/fstab
+  ansible.posix.mount:
+    path: "{{ mirror_path }}"
+    src: /dev/nvme1n1
+    fstype: xfs
+    state: mounted
+  tags:
+    - bootstrap_mirror
+  when: mirror_create_fs
+
+# only make sure the rsync *can* succeed, let the cron handle the full sync
+- name: Bootstrap mirror # noqa command-instead-of-module
+  ansible.builtin.command:
+    "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://rsync.repo.almalinux.org/almalinux/TIME
+    {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux/{% endif %}"
+  args:
+    creates: "{{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux{% endif %}/TIME"
+  changed_when: false
+  tags:
+    - bootstrap_mirror
+
+- name: Setup cron for mirror
+  ansible.builtin.cron:
+    name: mirror_rsync
+    user: root
+    minute: "0"
+    hour: "*/1"
+    job:
+      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/almalinux_rsync.lock -c
+      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delete-delay --delay-updates
+      rsync://rsync.repo.almalinux.org/almalinux/ {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux/{% endif %}\""
+    cron_file: "almalinux_rsync"  # /etc/cron.d/almalinux_rsync
+    state: "present"
+  tags:
+    - cron
+
+- name: Customize sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value | string }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ mirror_sysctl_performance }}"

@@ -1,0 +1,68 @@
+ssh_authorized_keys:
+  - "https://github.com/codyro.keys"
+  - "https://github.com/jonathanspw.keys"
+authorized_keys_managed: false # UNUSED
+whitelist_ips:
+  "{{ lookup( 'community.hashi_vault.hashi_vault', 'kv/data/infra/general-ansible-vars:whitelist_ips',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url ) | regex_replace('#.*$\n?', multiline=true) | replace(' ', '') | split(',') }}"
+# TODO: Listen on tailscale0 by default
+zabbix_listen_ip: "{{ ansible_eth0.ipv4.address }}"
+zabbix_listen_port: 10050
+
+# alphabetical please
+common_packages:
+  - lsof
+  - nano
+  - nload
+  - telnet
+  - vim
+  - yum-utils
+
+# common headscale/tailscale client vars
+tailscale_authkey: "{{ lookup('env', 'TAILSCALE_KEY') }}"
+tailscale_args:
+  "--reset --hostname {{ inventory_hostname }}
+  --login-server='{{ lookup('community.hashi_vault.hashi_vault',
+    'kv/data/infra/general-ansible-vars:tailscale_login_server',
+    token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}'"
+
+# ipa client
+ipaclient_domain: ipa.almalinux.org
+ipaadmin_principal: "{{ lookup('env', 'IPA_USER') }}"
+ipaadmin_password: "{{ lookup('env', 'IPA_PASSWORD') }}"
+ipaclient_use_otp: false
+ipaclient_force_join: true
+ipaclient_kinit_attempts: 3
+ipaclient_hostname: "{{ inventory_hostname }}"
+ipaclient_no_ntp: true
+# so devsec ssh hardening doesn't break IPA features
+sshd_custom_options:
+  - "Include /etc/ssh/sshd_config.d/*"
+
+# ssh config/hardening
+ssh_gssapi_support: true
+ssh_permit_root_login: 'without-password'
+ssh_kerberos_support: true
+
+# zabbix agent
+zabbix_agent_version: 6.4
+zabbix_agent2: true
+zabbix_agent_visible_hostname: "{{ inventory_hostname }}"
+zabbix_agent_server:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/general-ansible-vars:zabbix_server_url',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+zabbix_agent_serveractive:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/general-ansible-vars:zabbix_server_url',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+zabbix_repo_yum_gpgcheck: true
+
+# certbot
+certbot_email:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/general-ansible-vars:certbot_email',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+
+# hashivault
+hashivault_domain: secrets.almalinux.org
+# we concat this, so needs to be a string
+hashivault_port: '8200'
+secrets_url: https://{{ hashivault_domain }}:{{ hashivault_port }}

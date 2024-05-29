@@ -1,0 +1,5 @@
+---
+# locking to the older 1.14.x branch anticipating a move to openbao in the future
+hashivault_vault_version: 1.14.10-1
+hashivault_disable_mlock: 'true'
+hashivault_storage_type: 'raft'

@@ -1,0 +1,44 @@
+---
+- name: Check required vars
+  hosts: localhost
+  tasks:
+    - name: Check if var is set - {{ item }}
+      ansible.builtin.assert:
+        that: "{{ lookup('env', item) | length > 0 }}"
+        fail_msg: "{{ item }} is not set"
+      loop:
+        - TAILSCALE_KEY
+        - IPA_USER
+        - IPA_PASSWORD
+
+- name: Hashicorp Vault
+  hosts: hashivault
+  environment:
+    VAULT_ADDR: "{{ vault_url }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_TOKEN') }}"
+  roles:
+    - common
+    - ipa_client
+    - hashivault
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
+
+# this is done like this so we can delay restarts as to maintain quorum
+- name: Restart Vault
+  hosts: hashivault
+  serial: 1
+  tasks:
+    - name: Restart vault
+      ansible.builtin.systemd_service:
+        name: vault
+        state: restarted
+      when: config_written.changed
+      register: vault_restarted
+      tags: skip_ansible_lint
+
+    - name: Pause after restart
+      ansible.builtin.pause:
+        seconds: 30
+      when: vault_restarted.changed
+      tags: skip_ansible_lint

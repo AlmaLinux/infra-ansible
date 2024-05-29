@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+
+{% for path in item.value %}path "{{ path.path }}" {
+  capabilities = {{ path.capabilities | tojson }}
+}
+{% endfor %}

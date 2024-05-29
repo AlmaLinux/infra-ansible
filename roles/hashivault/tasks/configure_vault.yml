@@ -1,0 +1,72 @@
+---
+- name: Check if var is set - {{ item }}
+  ansible.builtin.assert:
+    that: "{{ lookup('env', item) | length > 0 }}"
+    fail_msg: "{{ item }} is not set"
+  loop:
+    - VAULT_TOKEN
+  any_errors_fatal: true
+
+- name: Install pip
+  ansible.builtin.package:
+    name: python3-pip
+    state: present
+  tags: configure_vault
+
+- name: Install python hvac module
+  ansible.builtin.pip:
+    name: hvac
+  tags: configure_vault
+
+- name: Read IPA CA file
+  ansible.builtin.slurp:
+    src: "{{ auth_ldap_certificate_file }}"
+  register: ipa_ca
+  tags: configure_vault
+
+- name: Check vault status
+  hashivault_status:
+  register: vault_status
+  tags: configure_vault
+  delegate_to: localhost
+
+- name: Check if vault initialized and unsealed
+  ansible.builtin.fail:
+    msg: Please initialize and unseal the vault and re-run the playbook.
+  when: vault_status.status.sealed or not vault_status.status.initialized
+  tags: configure_vault
+  any_errors_fatal: true
+
+- name: Enable LDAP Auth
+  hashivault_auth_method:
+    method_type: ldap
+  tags: configure_vault
+  delegate_to: localhost
+
+- name: Configure LDAP auth
+  hashivault_auth_ldap:
+    user_dn: "{{ auth_ldap_userdn }}"
+    group_dn: "{{ auth_ldap_groupdn }}"
+    bind_dn: "{{ auth_ldap_binddn }}"
+    ldap_url: "{{ auth_ldap_url }}"
+    group_filter: "{{ auth_ldap_groupfilter }}"
+    userfilter: "{{ auth_ldap_userfilter }}"
+    group_attr: "{{ auth_ldap_groupattr }}"
+    user_attr: "{{ auth_ldap_userattr }}"
+    certificate: "{{ ipa_ca.content | b64decode }}"
+  tags: configure_vault
+  delegate_to: localhost
+
+- name: Configure policies
+  hashivault_policy:
+    name: "{{ item.key }}"
+    rules: "{{ lookup('ansible.builtin.template', 'hashivault_policy.hcl.j2') }}"
+  loop: "{{ hashivault_policies | dict2items }}"
+  delegate_to: localhost
+
+- name: Configure groups
+  hashivault_ldap_group:
+    name: "{{ item.name }}"
+    policies: "{{ item.policies }}"
+  loop: "{{ hashivault_ldap_groups }}"
+  delegate_to: localhost

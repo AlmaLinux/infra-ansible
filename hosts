@@ -1,0 +1,41 @@
+#[freeipa]
+#ipa01.awsuseast1.ipa ansible_host=35.169.194.8
+#ipa02.awsuseast1.ipa ansible_host=184.72.121.220
+
+#[noggin]
+#accounts.almalinux.org ansible_host=44.210.221.240
+
+# id.almalinux.org
+#[keycloak]
+#keycloak01.awsuseast1.ipa.almalinux.org
+#keycloak02.azureussouthcentral.ipa.almalinux.org
+#keycloak03.knownhostga.ipa.almalinux.org
+
+#[web]
+#zabbix.almalinux.org
+#chat.almalinux.org
+
+#[web:children]
+#keycloak
+
+[aws_mirrors]
+
+
+[azure_mirrors]
+
+
+[external_managed_mirrors]
+almalinux-mirror.yucca.net
+
+[mirrors:children]
+aws_mirrors
+azure_mirrors
+external_managed_mirrors
+
+[mirrors_tier0]
+#atl.rsync.repo.almalinux.org
+#sea.rsync.repo.almalinux.org
+#fra.rsync.repo.almalinux.org
+
+[hashivault]
+vault[01:05].secrets.almalinux.org

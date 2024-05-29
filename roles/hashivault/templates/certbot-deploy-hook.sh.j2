@@ -1,0 +1,10 @@
+#!/bin/sh
+# {{ ansible_managed }}
+
+# dynamic based on domain. ex: /etc/letsencrypt/live/example.com
+cert_dir=$RENEWED_LINEAGE
+
+install -pD -m 700 -g vault -o vault -t /opt/vault/tls $cert_dir/fullchain.pem $cert_dir/privkey.pem
+
+# only reload vault if it is running
+systemctl is-active --quiet vault.service && systemctl reload vault.service

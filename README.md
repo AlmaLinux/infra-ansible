@@ -1,2 +1,3 @@
-# infra-ansible
-AlmaLinux infrastructure Ansible playbooks and roles
+# AlmaLinux Infrastructure Ansible Playbooks
+
+ansible-galaxy install -r requirements.yml

@@ -1,0 +1,8 @@
+---
+- name: Enable SELinux
+  ansible.posix.selinux:
+    policy: "{{ selinux_policy }}"
+    state: "{{ selinux_state }}"
+    persistent: true
+  tags:
+    - selinux
