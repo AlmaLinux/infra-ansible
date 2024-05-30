@@ -1,2 +1,5 @@
 ---
-- ansible.builtin.import_tasks: zabbix_handler.yml # noqa name[missing]
+- name: Import firewalld handlers
+  ansible.builtin.import_tasks: firewalld_handler.yml
+- name: Import zabbix handlers
+  ansible.builtin.import_tasks: zabbix_handler.yml

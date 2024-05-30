@@ -1,8 +1,11 @@
 ---
 collections:
+    - name: ansible.posix
     - name: devsec.hardening
     - name: freeipa.ansible_freeipa
     - name: community.hashi_vault
+    - name: community.zabbix
+    - name: community.general
 
 roles:
     - name: artis3n.tailscale

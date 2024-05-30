@@ -1,0 +1,43 @@
+# .github/workflows/ansible-lint.yml
+name: ansible-lint
+on:
+  pull_request:
+  push:
+
+env:
+  ansible_lint_version: v24.5.0
+  python_version: 3.12 # must have an alma rpm available in format python<version>
+
+jobs:
+  build:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    container: almalinux:9
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dnf dependencies
+        shell: bash
+        run: |
+          dnf -y install ansible-core epel-release git-core python3.12 python3.12-pip
+
+      - name: Install ansible and ansible-lint
+        shell: bash
+        # if we need to version lock example:
+        # pip3.12 install "ansible-lint[lock] @ git+https://github.com/ansible/ansible-lint@$ansible_lint_version"
+        run: |
+          pip$python_version install "ansible"
+          pip$python_version install "ansible-lint[lock]"
+          ansible-lint --version
+
+      # for some reason ansible-lint in online mode does not grab all deps properly
+      # this does
+      - name: Install ansible-galaxy dependencies
+        shell: bash
+        run: |
+          ansible-galaxy install -r requirements.yml
+
+      - name: Run ansible-lint
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: ansible-lint --offline
