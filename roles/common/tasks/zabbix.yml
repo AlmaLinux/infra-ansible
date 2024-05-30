@@ -5,7 +5,7 @@
     state: present
     permanent: true
   notify:
-    - reload firewalld
+    - Reload firewalld
   tags:
     - firewalld
     - zabbix
