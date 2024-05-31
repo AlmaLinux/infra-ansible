@@ -6,11 +6,12 @@
   tags:
     - caddy
 
-- name: Start/Enable Caddy
-  ansible.builtin.systemd:
-    name: caddy.service
-    state: started
-    enabled: true
+- name: Create Caddy log dir
+  ansible.builtin.file:
+    path: /var/log/caddy/
+    owner: caddy
+    group: caddy
+    mode: "0600"
   tags:
     - caddy
 
@@ -111,3 +112,13 @@
     value: "{{ item.value | string }}"
     state: "{{ item.state | default('present') }}"
   loop: "{{ mirror_sysctl_performance }}"
+  tags:
+    - sysctl
+
+- name: Start/Enable Caddy
+  ansible.builtin.systemd:
+    name: caddy.service
+    state: started
+    enabled: true
+  tags:
+    - caddy
