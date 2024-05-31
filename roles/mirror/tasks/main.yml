@@ -47,6 +47,18 @@
   tags:
     - bootstrap_mirror
 
+- name: Set SELinux context for mirror directory
+  community.general.sefcontext:
+    target: '{{ mirror_path }}(/.*)?'
+    setype: httpd_sys_content_t
+    state: present
+  register: set_selinux_context
+
+# need to apply new contexts "now" to prevent potential issues in later tasks
+- name: Apply new SELinux file context to filesystem # noqa no-handler no-changed-when
+  ansible.builtin.command: restorecon -irv {{ mirror_path }}
+  when: set_selinux_context.changed
+
 - name: Create XFS filesystem for mirror data
   community.general.filesystem:
     state: present
