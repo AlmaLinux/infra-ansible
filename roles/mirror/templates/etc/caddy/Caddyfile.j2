@@ -1,11 +1,20 @@
 # {{ ansible_managed }}
 
-{{ inventory_hostname }}
+{{ inventory_hostname }} {
 
-root * {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux{% endif%}
+    root * {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux{% endif%}
 
-file_server {
-    browse
+
+    file_server {
+        browse
+    }
+
+    log {
+        output file /var/log/caddy/{{ inventory_hostname }}.access.log {
+            roll_keep_for 30d
+        }
+    }
+
+    {% if mirror_custom_ssl %}tls /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem /etc/letsencrypt/live/{{ inventory_hostname}}/privkey.pem{% endif %}
+
 }
-
-{% if mirror_custom_ssl %}tls /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem /etc/letsencrypt/live/{{ inventory_hostname}}/privkey.pem{% endif %}
