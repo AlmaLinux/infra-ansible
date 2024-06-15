@@ -12,6 +12,7 @@
     owner: caddy
     group: caddy
     mode: "0600"
+    state: directory
   tags:
     - caddy
 
