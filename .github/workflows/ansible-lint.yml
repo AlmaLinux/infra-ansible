@@ -40,4 +40,4 @@ jobs:
       - name: Run ansible-lint
         shell: bash
         working-directory: ${{ github.workspace }}
-        run: ansible-lint --offline
+        run: ansible-lint --exclude ${HOME}/.ansible/roles/ --offline
