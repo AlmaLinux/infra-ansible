@@ -1,0 +1,19 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Reload matrix-synapse
+  ansible.builtin.systemd:
+    name: matrix-synapse
+    state: reloaded
+
+- name: Restart matrix-synapse
+  ansible.builtin.systemd:
+    name: matrix-synapse
+    state: restarted
+
+- name: Restart caddy
+  ansible.builtin.systemd:
+    name: caddy.service
+    state: restarted

@@ -1,0 +1,12 @@
+---
+- name: Include tasks for installing with pip
+  ansible.builtin.include_tasks: pip.yml
+  when: matrix_synapse_install_method == "pip"
+
+- name: Configure caddy reverse proxy
+  ansible.builtin.include_tasks: caddy.yml
+  when: matrix_synapse_configure_local_db
+
+- name: Configure element web app
+  ansible.builtin.include_tasks: element.yml
+  when: matrix_synapse_install_element

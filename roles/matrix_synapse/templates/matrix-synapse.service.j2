@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# original source from https://src.fedoraproject.org/rpms/matrix-synapse/blob/66ba92113721233301eb569974e7bd71812b417b/f/synapse.service
+[Unit]
+Description=Synapse Matrix homeserver
+After=network-online.target postgresql.service
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=synapse
+Group=synapse
+WorkingDirectory=/var/lib/synapse
+ExecStart={% if matrix_synapse_install_method == "pip" %}{{ matrix_synapse_venv_path }}/bin/{% else %}/usr/bin/{% endif %}python{{ matrix_synapse_python_version }} -m synapse.app.homeserver --config-path=/etc/synapse/homeserver.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+# EnvironmentFile=-/etc/sysconfig/synapse  # Can be used to e.g. set SYNAPSE_CACHE_FACTOR
+SyslogIdentifier=synapse
+
+[Install]
+WantedBy=multi-user.target

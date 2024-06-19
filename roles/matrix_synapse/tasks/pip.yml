@@ -1,0 +1,83 @@
+---
+- name: Install dependencies
+  ansible.builtin.package:
+    name:
+      - gcc
+      - libpq-devel
+      - python{{ matrix_synapse_python_version }}-devel
+
+- name: Install python/pip {{ matrix_synapse_python_version }}
+  ansible.builtin.package:
+    name:
+      - "{{ matrix_synapse_python_package_name }}"
+      - "{{ matrix_synapse_pip_package_name }}"
+
+- name: Install matrix-synapse
+  ansible.builtin.pip:
+    virtualenv_command: "{{ matrix_synapse_python_package_name }} -m venv"
+    virtualenv: "{{ matrix_synapse_venv_path }}"
+    name:
+      - matrix-synapse == {{ matrix_synapse_version }}
+      - matrix-synapse[oidc] == {{ matrix_synapse_version }}
+      - matrix-synapse[postgres] == {{ matrix_synapse_version }}
+    umask: "0022"
+  notify: Restart matrix-synapse
+
+- name: Install sytemd service
+  ansible.builtin.template:
+    src: matrix-synapse.service.j2
+    dest: /etc/systemd/system/matrix-synapse.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Reload matrix-synapse
+
+- name: Create synapse system user
+  ansible.builtin.user:
+    name: synapse
+    create_home: false
+
+- name: Create config dir
+  ansible.builtin.file:
+    path: /etc/synapse
+    state: directory
+    owner: synapse
+    group: synapse
+    mode: "0700"
+
+- name: Create working dir
+  ansible.builtin.file:
+    path: /var/lib/synapse
+    state: directory
+    owner: synapse
+    group: synapse
+    mode: "0700"
+
+- name: Write config
+  ansible.builtin.template:
+    src: homeserver.yaml.j2
+    dest: /etc/synapse/homeserver.yaml
+    owner: synapse
+    group: synapse
+    mode: "0600"
+  notify:
+    - Reload matrix-synapse
+
+- name: Write signing key
+  ansible.builtin.copy:
+    content: "{{ matrix_synapse_signing_key }}"
+    dest: /etc/synapse/{{ matrix_synapse_config_server_name }}.signing.key
+    owner: synapse
+    group: synapse
+    mode: "0600"
+  when: matrix_synapse_signing_key is defined
+  notify:
+    - Reload matrix-synapse
+
+- name: Enable and start matrix-synapse
+  ansible.builtin.systemd:
+    name: matrix-synapse
+    enabled: true
+    state: started

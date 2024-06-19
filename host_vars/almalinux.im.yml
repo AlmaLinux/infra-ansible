@@ -1,0 +1,119 @@
+---
+matrix_synapse_config_server_name: "{% if matrix_synapse_staging %}stg.{% endif %}almalinux.im"
+matrix_synapse_config_app_server_name: app.{% if matrix_synapse_staging %}stg.{% endif %}almalinux.im
+
+hashi_vault_path: "kv/data/infra/{% if matrix_synapse_staging %}stg/{% endif %}synapse"
+
+matrix_synapse_signing_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:signing_key',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+
+firewalld_extra_allow_ports:
+  - "8448/tcp"
+  - "8448/udp"
+
+postgresql_databases:
+  - name: synapse
+    lc_collate: C
+    lc_ctype: C
+
+postgresql_users:
+  - name: synapse_user
+    password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:database_password',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+    db: synapse
+
+# synapse config
+matrix_synapse_homeserver_config:
+  server_name: "{{ matrix_synapse_config_server_name }}"
+  pid_file: "{{ matrix_synapse_config_pid_file | default('/var/run/synapse.pid') }}"
+  listeners:
+    - port: 8008
+      tls: false
+      type: http
+      x_forwarded: true
+      bind_addresses: ['::1', '127.0.0.1']
+      resources:
+        - names: [client, federation]
+          compress: false
+  database:
+    name: psycopg2
+    args:
+      user: synapse_user
+      password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:database_password',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+      dbname: synapse
+      host: localhost
+      cp_min: 5
+      cp_max: 10
+  log_config: "/etc/synapse/{{ matrix_synapse_config_server_name }}.log.config"
+  media_store_path: "{{ matrix_synapse_config_media_store_path | default('/var/lib/synapse/media_store') }}"
+  registration_shared_secret: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:registration_shared_secret',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+  report_stats: "{{ matrix_synapse_config_report_stats | default('true') }}"
+  macaroon_secret_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:macaroon_secret_key',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+  form_secret: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:form_secret',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+  signing_key_path: "/etc/synapse/{{ matrix_synapse_config_server_name }}.signing.key"
+  trusted_key_servers:
+    - server_name: "matrix.org"
+  password_config:
+    enabled: only_for_reauth
+  oidc_providers:
+    - idp_id: keycloak
+      idp_name: "id.almalinux.org"
+      issuer: "https://id.almalinux.org/realms/master"
+      client_id: "synapse"
+      client_secret: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:oidc_client_secret',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+      scopes: ["openid", "profile"]
+      user_mapping_provider:
+        config:
+          localpart_template: "{% raw %}{{ user.preferred_username }}{% endraw %}"
+          display_name_template: "{% raw %}{{ user.name }}{% endraw %}"
+      backchannel_logout_enabled: true # Optional
+  auto_join_rooms:
+    - "#general:{% if matrix_synapse_staging %}stg.{% endif %}almalinux.im"
+  # Allow specific users to publish rooms, deny otehrs
+  room_list_publication_rules:
+    - user_id: "@jonathan:{% if matrix_synapse_staging %}stg.{% endif %}almalinux.im"
+      action: allow
+    - action: deny
+
+# element-web config
+matrix_synapse_element_config:
+  default_server_config:
+    m.homeserver:
+      base_url: 'https://{{ matrix_synapse_config_server_name }}'
+      server_name: '{{ matrix_synapse_config_server_name }}'
+  disable_custom_urls: true
+  disable_guests: false
+  disable_login_language_selector: false
+  disable_3pid_login: true
+  brand: AlmaLinux Element
+  integrations_ui_url: 'https://scalar.vector.im/'
+  integrations_rest_url: 'https://scalar.vector.im/api'
+  integrations_widgets_urls:
+    - 'https://scalar.vector.im/_matrix/integrations/v1'
+    - 'https://scalar.vector.im/api'
+    - 'https://scalar-staging.vector.im/_matrix/integrations/v1'
+    - 'https://scalar-staging.vector.im/api'
+    - 'https://scalar-staging.riot.im/scalar/api'
+  default_country_code: US
+  show_labs_settings: false
+  features: {}
+  default_federate: true
+  default_theme: dark
+  room_directory:
+    servers:
+      - '{{ matrix_synapse_config_server_name }}'
+  enable_presence_by_hs_url:
+    'https://matrix.org': false
+    'https://matrix-client.matrix.org': false
+  setting_defaults:
+    breadcrumbs: true
+  jitsi:
+    preferred_domain: meet.almalinux.org
+  map_style_url: 'https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx'
+  branding:
+    auth_header_logo_url: 'https://almalinux.org/images/icon.svg'

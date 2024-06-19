@@ -11,3 +11,4 @@ roles:
     - name: artis3n.tailscale
     - name: ansible-modules-hashivault
       src: git+https://github.com/TerryHowe/ansible-modules-hashivault.git
+    - name: geerlingguy.postgresql

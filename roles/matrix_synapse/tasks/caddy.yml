@@ -1,0 +1,38 @@
+---
+- name: Install Caddy
+  ansible.builtin.dnf:
+    name: caddy
+    state: present
+  tags:
+    - caddy
+
+- name: Create Caddy log dir
+  ansible.builtin.file:
+    path: /var/log/caddy/
+    owner: caddy
+    group: caddy
+    mode: "0700"
+    state: directory
+  tags:
+    - caddy
+
+- name: Distribute /etc/caddy/Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    mode: "0600"
+    owner: caddy
+    group: caddy
+  notify: Restart caddy
+  tags:
+    - caddy
+
+- name: Allow binding ports in selinux
+  community.general.seport:
+    ports: 8448
+    proto: "{{ item }}"
+    setype: http_port_t
+    state: present
+  loop:
+    - tcp
+    - udp

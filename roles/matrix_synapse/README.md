@@ -1,0 +1,1 @@
+This role supports AlmaLinux/RHEL 9 and greater.

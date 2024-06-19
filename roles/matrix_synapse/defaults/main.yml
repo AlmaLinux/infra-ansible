@@ -1,0 +1,76 @@
+---
+matrix_synapse_install_method: pip
+matrix_synapse_python_version: "3"
+matrix_synapse_python_package_name: python{{ matrix_synapse_python_version }}
+matrix_synapse_pip_package_name: "{{ matrix_synapse_python_package_name }}-pip"
+matrix_synapse_venv_path: /opt/matrix_synapse_venv
+matrix_synapse_configure_local_db: true
+matrix_synapse_configure_caddy: true
+matrix_synapse_install_element: true
+matrix_synapse_element_auth_header_logo_url: false
+
+# element-web config
+matrix_synapse_element_config:
+  default_server_config:
+    m.homeserver:
+      base_url: 'https://matrix-client.matrix.org'
+      server_name: matrix.org
+    m.identity_server:
+      base_url: 'https://vector.im'
+  disable_custom_urls: false
+  disable_guests: false
+  disable_login_language_selector: false
+  disable_3pid_login: false
+  brand: Element
+  integrations_ui_url: 'https://scalar.vector.im/'
+  integrations_rest_url: 'https://scalar.vector.im/api'
+  integrations_widgets_urls:
+    - 'https://scalar.vector.im/_matrix/integrations/v1'
+    - 'https://scalar.vector.im/api'
+    - 'https://scalar-staging.vector.im/_matrix/integrations/v1'
+    - 'https://scalar-staging.vector.im/api'
+    - 'https://scalar-staging.riot.im/scalar/api'
+  default_country_code: US
+  show_labs_settings: false
+  features: {}
+  default_federate: true
+  default_theme: light
+  room_directory:
+    servers:
+      - matrix.org
+  enable_presence_by_hs_url:
+    'https://matrix.org': false
+    'https://matrix-client.matrix.org': false
+  setting_defaults:
+    breadcrumbs: true
+  jitsi:
+    preferred_domain: meet.element.io
+  element_call:
+    url: 'https://call.element.io'
+    participant_limit: 8
+    brand: Element Call
+  map_style_url: 'https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx'
+
+# matrix-synapse config
+matrix_synapse_homeserver_config:
+  server_name: "{{ matrix_synapse_config_server_name }}"
+  pid_file: /var/run/synapse.pid
+  listeners:
+    - port: 8008
+      tls: false
+      type: http
+      x_forwarded: true
+      bind_addresses: ['::1', '127.0.0.1']
+      resources:
+        - names: [client, federation]
+          compress: false
+  database:
+    name: sqlite3
+    args:
+      database: /var/lib/synapse/homeserver.db
+  report_stats: true
+  log_config: "/etc/synapse/{{ matrix_synapse_config_server_name }}.log.config"
+  media_store_path: /var/lib/synapse/media_store
+  signing_key_path: "/etc/synapse/{{ matrix_synapse_config_server_name }}.signing.key"
+  trusted_key_servers:
+    - server_name: "matrix.org"

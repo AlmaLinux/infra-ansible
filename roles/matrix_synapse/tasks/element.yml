@@ -1,0 +1,21 @@
+---
+# TODO: package this for epel or copr
+- name: Download element-web release archive {{ matrix_synapse_element_version }}
+  ansible.builtin.get_url:
+    url: https://github.com/element-hq/element-web/releases/download/v{{ matrix_synapse_element_version }}/element-v{{ matrix_synapse_element_version }}.tar.gz
+    dest: /tmp/element-v{{ matrix_synapse_element_version }}.tar.gz
+    mode: "0644"
+
+- name: Extract element-web archive
+  ansible.builtin.unarchive:
+    src: /tmp/element-v{{ matrix_synapse_element_version }}.tar.gz
+    dest: /usr/share/caddy/
+    remote_src: true
+
+- name: Write config file
+  ansible.builtin.template:
+    src: element.config.json.j2
+    dest: /usr/share/caddy/element-v{{ matrix_synapse_element_version }}/config.json
+    mode: "0644"
+    owner: caddy
+    group: caddy
