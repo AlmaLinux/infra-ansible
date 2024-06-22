@@ -8,6 +8,9 @@ matrix_synapse_configure_local_db: true
 matrix_synapse_configure_caddy: true
 matrix_synapse_install_element: true
 matrix_synapse_element_auth_header_logo_url: false
+matrix_synapse_staging: false
+matrix_synapse_config_server_name: "{% if matrix_synapse_staging %}stg.{% endif %}example.tld"
+matrix_synapse_config_app_server_name: app.{% if matrix_synapse_staging %}stg.{% endif %}example.tld
 
 # element-web config
 matrix_synapse_element_config:

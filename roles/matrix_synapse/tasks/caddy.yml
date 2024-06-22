@@ -36,3 +36,11 @@
   loop:
     - tcp
     - udp
+
+- name: Start and enable Caddy
+  ansible.builtin.systemd:
+    name: caddy.service
+    state: started
+    enabled: true
+  tags:
+    - caddy
