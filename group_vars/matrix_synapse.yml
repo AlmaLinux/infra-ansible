@@ -1,0 +1,4 @@
+---
+matrix_synapse_python_version: 3.12
+matrix_synapse_version: 1.109
+matrix_synapse_element_version: 1.11.68

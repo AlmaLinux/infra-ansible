@@ -27,6 +27,12 @@
 [external_managed_mirrors]
 almalinux-mirror.yucca.net
 
+[matrix_synapse]
+almalinux.im ansible_host=170.249.201.58
+
+[matrix_synapse_stg]
+stg.almalinux.im
+
 [mirrors:children]
 aws_mirrors
 azure_mirrors

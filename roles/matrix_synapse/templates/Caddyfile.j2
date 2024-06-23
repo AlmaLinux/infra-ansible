@@ -1,0 +1,52 @@
+# {{ ansible_managed }}
+
+{{ matrix_synapse_config_server_name }} {
+  header /.well-known/matrix/* Content-Type application/json
+  header /.well-known/matrix/* Access-Control-Allow-Origin *
+  respond /.well-known/matrix/server `{"m.server": "{{ matrix_synapse_config_server_name }}:443"}`
+  respond /.well-known/matrix/client `{"m.homeserver":{"base_url":"https://{{ matrix_synapse_config_server_name }}","server_name":"{{ matrix_synapse_config_server_name }}"}}`
+
+  reverse_proxy /_matrix/* localhost:8008
+  reverse_proxy /_synapse/* localhost:8008
+  reverse_proxy /_synapse/client/* localhost:8008
+  #reverse_proxy /synapse-admin* localhost:8080
+  handle_path /synapse-admin* {
+    reverse_proxy localhost:8080
+  }
+
+  log {
+    output file /var/log/caddy/{{ matrix_synapse_config_server_name }}.access.log {
+      roll_keep_for 30d
+    }
+  }
+}
+
+{{ matrix_synapse_config_server_name }}:8448 {
+  reverse_proxy /_matrix/* localhost:8008
+}
+
+{% if matrix_synapse_install_element %}
+{{ matrix_synapse_config_app_server_name }} {
+  root * /usr/share/caddy/element-v{{ matrix_synapse_element_version }}
+  file_server {
+    hide .git
+  }
+
+  encode * {
+    gzip 6
+    zstd
+  }
+
+  @static {
+    file
+    path *.ico *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2 *.ogg
+  }
+  header @static Cache-Control max-age=5184000
+
+  log {
+    output file /var/log/caddy/{{ matrix_synapse_config_app_server_name }}.access.log {
+      roll_keep_for 30d
+    }
+  }
+}
+{% endif %}

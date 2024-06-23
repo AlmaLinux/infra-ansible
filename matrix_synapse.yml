@@ -1,0 +1,13 @@
+---
+- name: Configure matrix-synapse servers
+  hosts:
+    - matrix_synapse
+    - matrix_synapse_stg
+  roles:
+    - common
+    - role: geerlingguy.postgresql
+      when: matrix_synapse_configure_local_db
+    - matrix_synapse
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
