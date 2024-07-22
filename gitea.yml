@@ -1,0 +1,13 @@
+---
+- name: Configure gitea
+  hosts:
+    - gitea
+  roles:
+    - common
+    - ipa_client
+    - role: geerlingguy.mysql
+      when: gitea_database == 'mysql' or gitea_database == 'mariadb'
+    - gitea
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

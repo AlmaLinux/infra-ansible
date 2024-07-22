@@ -1,3 +1,6 @@
+# overridden in group/host vars for staging hosts
+staging: false
+
 ssh_authorized_keys:
   - "https://github.com/codyro.keys"
   - "https://github.com/jonathanspw.keys"

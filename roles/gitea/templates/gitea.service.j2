@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Gitea (Git with a cup of tea)
+After=network-online.target
+
+{% if gitea_database == 'mysql' %}
+Wants=mysql.service
+After=mysql.service
+{% elif gitea_database == 'mariadb' %}
+Wants=mariadb.service
+After=mariadb.service
+{% elif gitea_database == 'postgresql' %}
+Wants=postgresql.service
+After=postgresql.service
+{% endif %}
+
+{% if gitea_cache == 'memcached' %}
+Wants=memcached.service
+After=memcached.service
+{% elif gitea_cache == 'redis' %}
+Wants=redis.service
+After=redis.Service
+{% elif gitea_cache == 'valkey' %}
+Wants=valkey.service
+After=valkey.service
+{% endif %}
+
+[Service]
+# Uncomment the next line if you have repos with lots of files and get a HTTP 500 error because of that
+# LimitNOFILE=524288:524288
+RestartSec=2s
+Type=simple
+User=git
+Group=git
+WorkingDirectory=/var/lib/gitea/
+# If using Unix socket: tells systemd to create the /run/gitea folder, which will contain the gitea.sock file
+# (manually creating /run/gitea doesn't work, because it would not persist across reboots)
+#RuntimeDirectory=gitea
+ExecStart=/usr/local/bin/gitea web --config /etc/gitea/app.ini
+Restart=always
+Environment=USER=git HOME=/home/git GITEA_WORK_DIR=/var/lib/gitea
+
+[Install]
+WantedBy=multi-user.target

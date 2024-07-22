@@ -1,0 +1,14 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Restart Gitea
+  ansible.builtin.systemd_service:
+    name: gitea
+    state: restarted
+
+- name: Restart caddy
+  ansible.builtin.systemd_service:
+    name: caddy.service
+    state: restarted

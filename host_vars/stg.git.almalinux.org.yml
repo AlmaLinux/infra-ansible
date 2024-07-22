@@ -1,0 +1,3 @@
+---
+staging: true
+gitea_hostname: stg.git.almalinux.org

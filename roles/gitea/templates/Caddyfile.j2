@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+
+{{ inventory_hostname }} {
+
+    reverse_proxy :3000
+
+    log {
+        output file /var/log/caddy/{{ inventory_hostname }}.access.log {
+            roll_keep_for 30d
+        }
+    }
+
+}
