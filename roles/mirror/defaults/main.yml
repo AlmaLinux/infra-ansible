@@ -30,3 +30,21 @@ mirror_sysctl_performance:
     value: 1048576
 
 mirror_create_fs: true
+
+mirror_enable_http: true
+
+mirror_repos:
+  - mirror_name: almalinux
+    bootstrap_command:
+      "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://rsync.repo.almalinux.org/almalinux/TIME
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux/{% endif %}"
+    creates: "{{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux{% endif %}/TIME"
+    rsync_command:
+      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/almalinux_rsync.lock -c
+      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delete-delay --delay-updates
+      rsync://rsync.repo.almalinux.org/almalinux/ {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux/{% endif %}\""
+    rsync_name: mirror_rsync
+    rsync_user: root
+    rsync_minute: "0"
+    rsync_hour: "*/1"
+    rsync_file: almalinux_rsync

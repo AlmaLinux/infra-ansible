@@ -1,0 +1,49 @@
+---
+mirror_dev: /dev/nvme1n1
+mirror_repos:
+  - mirror_name: centos7
+    bootstrap_command:
+      "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://mirror.facebook.net/centos/TIME
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/centos/{% endif %}"
+    creates: "{{ mirror_path }}{% if mirror_path_use_subdir %}/centos{% endif %}/TIME"
+    rsync_command:
+      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/centos_rsync.lock-c
+      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delay-updates
+      --exclude isos/ --exclude atomic/
+      rsync://mirror.facebook.net/centos/{7,7.9*,RPM*}
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/centos/{% endif %}\""
+    rsync_name: centos_rsync
+    rsync_user: root
+    rsync_minute: "0"
+    rsync_hour: "*/1"
+  - mirror_name: centos7-altarch
+    bootstrap_command:
+      "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://linuxsoft.cern.ch/centos-vault/TIME
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/centos-altarch/{% endif %}"
+    creates: "{{ mirror_path }}{% if mirror_path_use_subdir %}/centos-altarch{% endif %}/TIME"
+    rsync_command:
+      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/centos-altarch_rsync.lock -c
+      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delay-updates
+      --exclude isos/ --exclude atomic/ --exclude power9/ --exclude i386/ --exclude ppc64 -exclude armhfp
+      --exclude experimental/
+      rsync://linuxsoft.cern.ch/centos-vault/{7,7.9*,RPM*}
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/centos-altarch/{% endif %}\""
+    rsync_name: centos-altarch_rsync
+    rsync_user: root
+    rsync_minute: "0"
+    rsync_hour: "*/1"
+  - mirror_name: epel7
+    bootstrap_command:
+      "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://mirror.facebook.net/fedora/epel/fullfilelist
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/epel/{% endif %}"
+    creates: "{{ mirror_path }}{% if mirror_path_use_subdir %}/epel{% endif %}/TIME"
+    rsync_command:
+      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/epel_rsync.lock -c
+      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delay-updates
+      --exclude SRPMS/ --exclude debug/ --exclude drpms/
+      rsync://mirror.facebook.net/fedora/epel/{7*,RPM*}
+      {{ mirror_path }}{% if mirror_path_use_subdir %}/epel/{% endif %}\""
+    rsync_name: epel_rsync
+    rsync_user: root
+    rsync_minute: "0"
+    rsync_hour: "*/1"
