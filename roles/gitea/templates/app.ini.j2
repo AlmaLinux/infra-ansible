@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+{% for key,value in gitea_config.no_section.items() %}
+{{ key }} = {{ value }}
+{% endfor %}
+
+{% for section,values in gitea_config.sections.items() %}
+[{{ section }}]
+{% for key,value in values.items() %}
+{{ key }} = {{ value }}
+{% endfor %}
+
+{% endfor %}

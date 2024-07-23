@@ -4,7 +4,10 @@ collections:
     - name: devsec.hardening
     - name: freeipa.ansible_freeipa
     - name: community.hashi_vault
+    # 3.0.4 fixes a bug related to zabbix gpg keys
+    # https://github.com/ansible-collections/community.zabbix/pull/1272
     - name: community.zabbix
+      version: ">=3.0.4"
     - name: community.general
 
 roles:
@@ -12,3 +15,4 @@ roles:
     - name: ansible-modules-hashivault
       src: git+https://github.com/TerryHowe/ansible-modules-hashivault.git
     - name: geerlingguy.postgresql
+    - name: geerlingguy.mysql

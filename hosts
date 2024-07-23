@@ -49,3 +49,13 @@ el7_mirrors
 
 [hashivault]
 vault[01:05].secrets.almalinux.org
+
+[gitea_prod]
+git.almalinux.org
+
+[gitea_stg]
+stg.git.almalinux.org
+
+[gitea:children]
+gitea_prod
+gitea_stg
