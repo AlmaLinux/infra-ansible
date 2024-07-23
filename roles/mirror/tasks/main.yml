@@ -11,7 +11,7 @@
     path: /var/log/caddy/
     owner: caddy
     group: caddy
-    mode: "0600"
+    mode: "0700"
     state: directory
   tags:
     - caddy
@@ -74,7 +74,7 @@
 - name: Add mirror FS to /etc/fstab
   ansible.posix.mount:
     path: "{{ mirror_path }}"
-    src: /dev/nvme1n1
+    src: "{{ mirror_dev }}"
     fstype: xfs
     state: mounted
   tags:
@@ -83,27 +83,24 @@
 
 # only make sure the rsync *can* succeed, let the cron handle the full sync
 - name: Bootstrap mirror # noqa command-instead-of-module
-  ansible.builtin.command:
-    "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://rsync.repo.almalinux.org/almalinux/TIME
-    {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux/{% endif %}"
+  ansible.builtin.command: "{{ item.bootstrap_command }}"
   args:
-    creates: "{{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux{% endif %}/TIME"
+    creates: "{{ item.creates }}"
   changed_when: false
+  loop: "{{ mirror_repos }}"
   tags:
     - bootstrap_mirror
 
 - name: Setup cron for mirror
   ansible.builtin.cron:
-    name: mirror_rsync
-    user: root
-    minute: "0"
-    hour: "*/1"
-    job:
-      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/almalinux_rsync.lock -c
-      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delete-delay --delay-updates
-      rsync://rsync.repo.almalinux.org/almalinux/ {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux/{% endif %}\""
-    cron_file: "almalinux_rsync"  # /etc/cron.d/almalinux_rsync
+    name: "{{ item.mirror_name }}"
+    user: "{{ item.rsync_user | default('root') }}"
+    minute: "{{ item.rsync_minute }}"
+    hour: "{{ item.rsync_hour }}"
+    job: "{{ item.rsync_command }}"
+    cron_file: "{{ item.rsync_name }}"  # /etc/cron.d/almalinux_rsync
     state: "present"
+  loop: "{{ mirror_repos }}"
   tags:
     - cron
 
