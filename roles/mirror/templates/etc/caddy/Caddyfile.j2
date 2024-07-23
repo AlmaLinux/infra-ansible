@@ -2,7 +2,7 @@
 
 {{ inventory_hostname }} {
 
-    root * {{ mirror_path }}{% if mirror_path_use_subdir %}/almalinux{% endif%}
+    root * {{ mirror_path }}
 
 
     file_server {
@@ -18,3 +18,23 @@
     {% if mirror_custom_ssl %}tls /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem /etc/letsencrypt/live/{{ inventory_hostname}}/privkey.pem{% endif %}
 
 }
+
+{% if mirror_enable_http %}
+http://{{ inventory_hostname }} {
+
+    root * {{ mirror_path }}
+
+
+    file_server {
+        browse
+    }
+
+    log {
+        output file /var/log/caddy/{{ inventory_hostname }}-http.access.log {
+            roll_keep_for 30d
+        }
+    }
+
+
+}
+{% endif %}
