@@ -19,7 +19,10 @@ common_packages:
   - yum-utils
 
 # common headscale/tailscale client vars
-tailscale_authkey: "{{ lookup('env', 'TAILSCALE_KEY') }}"
+# don't use authkey as part of the state, so we don't have to always pass them
+auth_key_in_state: false
+# not sure why default can't be empty string here, but any string works so using '1'
+tailscale_authkey: "{{ lookup('env', 'TAILSCALE_KEY', default='1') }}"
 tailscale_args:
   "--reset --hostname {{ inventory_hostname }}
   --login-server='{{ lookup('community.hashi_vault.hashi_vault',
