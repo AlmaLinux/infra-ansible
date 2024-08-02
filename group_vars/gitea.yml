@@ -67,7 +67,7 @@ gitea_config:
       REGISTER_EMAIL_CONFIRM: "false"
       ENABLE_NOTIFY_MAIL: "false"
       DISABLE_REGISTRATION: "false"
-      ALLOW_ONLY_EXTERNAL_REGISTRATION: "false"
+      ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
       ENABLE_CAPTCHA: "false"
       REQUIRE_SIGNIN_VIEW: "false"
       DEFAULT_KEEP_EMAIL_PRIVATE: "false"
