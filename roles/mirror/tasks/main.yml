@@ -67,7 +67,7 @@
 - name: Set SELinux context for mirror directory
   community.general.sefcontext:
     target: '{{ mirror_path }}(/.*)?'
-    setype: httpd_sys_content_t
+    setype: public_content_t
     state: present
   register: set_selinux_context
 

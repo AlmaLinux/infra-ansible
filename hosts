@@ -44,7 +44,7 @@ external_managed_mirrors
 el7_mirrors
 
 [matrix_synapse]
-almalinux.im ansible_host=170.249.201.58
+almalinux.im
 
 [matrix_synapse_stg]
 stg.almalinux.im
