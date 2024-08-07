@@ -1,0 +1,23 @@
+# {{ ansible_managed }}
+
+uid = nobody
+gid = nobody
+reverse lookup = false
+forward lookup = false
+max connections = 1000
+transfer logging = true
+use chroot = true
+read only = true
+timeout = 600
+
+motd file = /etc/rsyncmotd
+
+log file=/var/log/rsyncd.log
+
+{% for module,values in rsync_modules.items() %}
+[{{ module }}]
+{% for key,value in values.items() %}
+{{ key }} = {{ value }}
+{% endfor %}
+
+{% endfor %}

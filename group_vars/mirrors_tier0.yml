@@ -1,0 +1,14 @@
+---
+mirror_path: /repo
+mirror_path_use_subdir: false
+mirror_custom_ssl: true
+mirror_create_fs: false
+mirror_bootstrap_mirror: false
+mirror_configure_crons: false
+rsync_modules:
+  almalinux:
+    path: "{{ mirror_path }}/almalinux"
+    comment: AlmaLinux repository
+  almalinux-elevate:
+    path: "{{ mirror_path }}/elevate"
+    comment: AlmaLinux ELevate repository

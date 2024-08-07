@@ -30,22 +30,24 @@ almalinux-mirror.yucca.net
 [el7_mirrors]
 el7.repo.almalinux.org
 
-[matrix_synapse]
-almalinux.im ansible_host=170.249.201.58
-
-[matrix_synapse_stg]
-stg.almalinux.im
+[mirrors_tier0]
+#atl.rsync.repo.almalinux.org
+#sea.rsync.repo.almalinux.org
+fra.rsync.repo.almalinux.org
+hnd.rsync.repo.almalinux.org
 
 [mirrors:children]
+mirrors_tier0
 aws_mirrors
 azure_mirrors
 external_managed_mirrors
 el7_mirrors
 
-[mirrors_tier0]
-#atl.rsync.repo.almalinux.org
-#sea.rsync.repo.almalinux.org
-#fra.rsync.repo.almalinux.org
+[matrix_synapse]
+almalinux.im
+
+[matrix_synapse_stg]
+stg.almalinux.im
 
 [hashivault]
 vault[01:05].secrets.almalinux.org
