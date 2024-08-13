@@ -4,6 +4,7 @@ staging: false
 ssh_authorized_keys:
   - "https://github.com/codyro.keys"
   - "https://github.com/jonathanspw.keys"
+  - "https://github.com/andrewlukoshko.keys"
 authorized_keys_managed: false # UNUSED
 whitelist_ips:
   "{{ lookup( 'community.hashi_vault.hashi_vault', 'kv/data/infra/general-ansible-vars:whitelist_ips',
