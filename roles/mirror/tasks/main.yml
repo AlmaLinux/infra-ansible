@@ -1,4 +1,19 @@
 ---
+- name: Add rsync backport repo
+  ansible.builtin.yum_repository:
+    name: backports-rsync
+    description: Backported rsync with extra features
+    file: backports-rsync
+    baseurl: http://repo.almalinux.org/backports/$releasever/$basearch/rsync/
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-$releasever
+
+- name: Update rsync # noqa package-latest
+  ansible.builtin.package:
+    name: rsync
+    state: latest
+
 - name: Install Caddy
   ansible.builtin.dnf:
     name: caddy
@@ -38,8 +53,22 @@
     - http
     - https
     - ssh
+    - rsyncd
   tags:
     - firewalld
+
+- name: Allow rsyncd traffic through firewalld
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    service: "{{ item }}"
+  loop:
+    - rsyncd
+  tags:
+    - firewalld
+  when: rsync_modules
 
 - name: Create mirror directory
   ansible.builtin.file:
@@ -52,7 +81,7 @@
 - name: Set SELinux context for mirror directory
   community.general.sefcontext:
     target: '{{ mirror_path }}(/.*)?'
-    setype: httpd_sys_content_t
+    setype: public_content_t
     state: present
   register: set_selinux_context
 
@@ -90,6 +119,7 @@
   loop: "{{ mirror_repos }}"
   tags:
     - bootstrap_mirror
+  when: mirror_bootstrap_mirror
 
 - name: Setup cron for mirror
   ansible.builtin.cron:
@@ -103,6 +133,7 @@
   loop: "{{ mirror_repos }}"
   tags:
     - cron
+  when: mirror_configure_crons
 
 - name: Customize sysctl
   ansible.posix.sysctl:
@@ -113,6 +144,10 @@
   tags:
     - sysctl
 
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+  when: mirror_custom_ssl
+
 - name: Start/Enable Caddy
   ansible.builtin.systemd:
     name: caddy.service
@@ -120,3 +155,27 @@
     enabled: true
   tags:
     - caddy
+
+- name: Install rsyncd
+  ansible.builtin.package:
+    name: rsync-daemon
+    state: present
+  when: mirror_rsync_modules
+
+- name: Configure rsyncd
+  ansible.builtin.template:
+    src: rsyncd.conf.j2
+    dest: /etc/rsyncd.conf
+    mode: "0644"
+  notify: Restart rsyncd
+  when: mirror_rsync_modules
+
+- name: Start rsyncd
+  ansible.builtin.systemd_service:
+    name: rsyncd
+    enabled: true
+    state: started
+  when: mirror_rsync_modules
+
+# TODO: correctly handle deploy-repo-alma user for tier0 mirrors
+# TODO: handle keying tier0 servers accordingly to accept syncs from repo.alma

@@ -48,3 +48,11 @@ mirror_repos:
     rsync_minute: "0"
     rsync_hour: "*/1"
     rsync_file: almalinux_rsync
+
+mirror_bootstrap_mirror: true
+mirror_configure_crons: true
+
+mirror_rsync_modules:
+  almalinux:
+    path: "{{ mirror_path }}/almalinux"
+    comment: AlmaLinux repository

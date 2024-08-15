@@ -4,7 +4,6 @@
 
     root * {{ mirror_path }}
 
-
     file_server {
         browse
     }
@@ -15,7 +14,7 @@
         }
     }
 
-    {% if mirror_custom_ssl %}tls /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem /etc/letsencrypt/live/{{ inventory_hostname}}/privkey.pem{% endif %}
+    {% if mirror_custom_ssl %}tls /etc/caddy/{{ inventory_hostname }}.fullchain.pem /etc/caddy/{{ inventory_hostname}}.privkey.pem{% endif %}
 
 }
 
@@ -23,7 +22,6 @@
 http://{{ inventory_hostname }} {
 
     root * {{ mirror_path }}
-
 
     file_server {
         browse
@@ -34,7 +32,6 @@ http://{{ inventory_hostname }} {
             roll_keep_for 30d
         }
     }
-
 
 }
 {% endif %}
