@@ -53,8 +53,22 @@
     - http
     - https
     - ssh
+    - rsyncd
   tags:
     - firewalld
+
+- name: Allow rsyncd traffic through firewalld
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    service: "{{ item }}"
+  loop:
+    - rsyncd
+  tags:
+    - firewalld
+  when: rsync_modules
 
 - name: Create mirror directory
   ansible.builtin.file:
