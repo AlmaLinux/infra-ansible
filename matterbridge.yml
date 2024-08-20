@@ -1,0 +1,9 @@
+---
+- name: Configure matterbridge
+  hosts: matterbridge
+  roles:
+    - common
+    - matterbridge
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

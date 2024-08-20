@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+{% for category,values in matterbridge_config.items() %}
+[{{ category }}]
+{% for key,value in values.items() %}
+{{ key }}="{{ value }}"
+{% endfor %}
+
+{% endfor %}
+
+{% for gateway,info in matterbridge_channels.items() %}
+[[gateway]]
+name="{{ gateway }}"
+enable=true
+
+{% for account,channel in info.items() %}
+    [[gateway.inout]]
+    account="{{ account }}"
+    channel="{{ channel }}"
+
+{% endfor %}
+
+{% endfor %}
