@@ -15,6 +15,7 @@ postgresql_databases:
   - name: synapse
     lc_collate: C
     lc_ctype: C
+    owner: synapse_user
 
 postgresql_users:
   - name: synapse_user
@@ -79,6 +80,9 @@ matrix_synapse_homeserver_config:
     - user_id: "@jonathan:{% if matrix_synapse_staging %}stg.{% endif %}almalinux.im"
       action: allow
     - action: deny
+  # allows listing public rooms
+  allow_public_rooms_without_auth: true
+  allow_public_rooms_over_federation: true
 
 # element-web config
 matrix_synapse_element_config:
