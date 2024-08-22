@@ -1,0 +1,27 @@
+---
+- name: Install matterbridge
+  ansible.builtin.package:
+    name: matterbridge
+    state: present
+
+- name: Write protocol.tengo config
+  ansible.builtin.template:
+    src: protocol.tengo.j2
+    dest: /etc/matterbridge/protocol.tengo
+    mode: "0640"
+    owner: matterbridge
+  notify: Restart matterbridge
+
+- name: Write matterbridge.toml config
+  ansible.builtin.template:
+    src: matterbridge.toml.j2
+    dest: /etc/matterbridge/matterbridge.toml
+    mode: "0640"
+    owner: matterbridge
+  notify: Restart matterbridge
+
+- name: Start/enable matterbridge service
+  ansible.builtin.service:
+    name: matterbridge
+    state: started
+    enabled: true

@@ -1,0 +1,160 @@
+---
+staging: false
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}matterbridge"
+
+matterbridge_config:
+  general:
+    LogFile: /var/log/matterbridge/matterbridge.log
+  tengo:
+    RemoteNickFormat: /etc/matterbridge/protocol.tengo
+  mattermost.almalinux:
+    Server: chat.almalinux.org
+    Team: almalinux
+    Login: almarelay
+    Password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:mattermost_password',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+    RemoteNickFormat: "[{TENGO}] <{NICK}> "
+    PrefixMessagesWithNick: "true"
+    EditDisable: "true"
+  irc.libera:
+    Nick: AlmaRelay
+    NickServNick: AlmaRelay
+    NickServPassword: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:libera_password',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+    Server: irc.libera.chat:6697
+    UseTLS: "true"
+    UseSASL: "true"
+    SkipTLSVerify: "false"
+    RemoteNickFormat: "[{TENGO}] <{NICK}> "
+    StripMarkdown: "true"
+    JoinDelay: 200
+    RejoinDelay: 30
+  discord.almalinux:
+    Token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:discord_token',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+    Server: 838792208681009162
+    RemoteNickFormat: "[{TENGO}] <{NICK}> "
+    AutoWebHooks: "true"
+  matrix.almalinux:
+    Server: https://almalinux.im:443
+    MxID: "@almarelay:almalinux.im"
+    Token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:almalinux-im_token',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+    NoHomeServerSuffix: "false"
+    UseUserName: "true"
+    RemoteNickFormat: "[{TENGO}] <{NICK}> "
+  matrix.almalinuxmatrixorg:
+    Server: https://matrix.org:443
+    Login: almarelay
+    Password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:matrixorg_password',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+    NoHomeServerSuffix: "true"
+    UseUserName: "true"
+    RemoteNickFormat: "[{TENGO}] <{NICK}> "
+
+matterbridge_channels:
+  gateway-general:
+    irc.libera: "#almalinux"
+    mattermost.almalinux: "town-square"
+    discord.almalinux: ID:838792208681009166
+    matrix.almalinux: "#general:almalinux.im"
+  gateway-social:
+    irc.libera: "#almalinux-social"
+    mattermost.almalinux: "off-topic"
+    discord.almalinux: ID:842071101437902881
+    # TODO: figure out why we can't create than channel in matrix
+    # matrix.almalinux: off-topic
+  gateway-security:
+    irc.libera: "#almalinux-security"
+    mattermost.almalinux: security
+    discord.almalinux: ID:838793143997431869
+    matrix.almalinux: "#security:almalinux.im"
+  gateway-infrastructure:
+    irc.libera: "#almalinux-infrastructure"
+    mattermost.almalinux: infrastructure
+    discord.almalinux: ID:838793131935006741
+    matrix.almalinux: "#infrastructure:almalinux.im"
+  gateway-marketing:
+    irc.libera: "#almalinux-marketing"
+    mattermost.almalinux: marketing
+    discord.almalinux: ID:1132399239222267915
+    matrix.almalinux: "#marketing:almalinux.im"
+  gateway-development:
+    irc.libera: "#almalinux-devel"
+    mattermost.almalinux: development
+    discord.almalinux: ID:1132400515913875587
+    matrix.almalinux: "#devel:almalinux.im"
+  gateway-build-system:
+    irc.libera: "#almalinux-build-system"
+    mattermost.almalinux: build-system
+    discord.almalinux: ID:1132401140173127750
+    matrix.almalinux: "#sig-build-system:almalinux.im"
+  gateway-migration:
+    irc.libera: "#almalinux-migration"
+    mattermost.almalinux: migration
+    discord.almalinux: ID:1132401312949096458
+    matrix.almalinux: "#migration:almalinux.im"
+  gateway-mirrors:
+    irc.libera: "#almalinux-mirrors"
+    mattermost.almalinux: mirrors
+    discord.almalinux: ID:1132401386651402264
+    matrix.almalinux: "#mirrors:almalinux.im"
+  gateway-www:
+    irc.libera: "#almalinux-www"
+    mattermost.almalinux: www
+    discord.almalinux: ID:1132404228971823297
+    matrix.almalinux: "#www:almalinux.im"
+  gateway-sig-certification:
+    irc.libera: "#almalinux-sig-certification"
+    mattermost.almalinux: sigcertification
+    discord.almalinux: ID:1275885508047929456
+    matrix.almalinux: "#sig-certification:almalinux.im"
+  gateway-alesco:
+    irc.libera: "#almalinux-alesco"
+    mattermost.almalinux: alesco
+    matrix.almalinux: "#alesco:almalinux.im"
+    discord.almalinux: ID:1275885575206867045
+  gateway-sig-hpc-ai:
+    irc.libera: "#almalinux-sig-hpc-ai"
+    mattermost.almalinux: sighpc--ai
+    matrix.almalinux: "#sig-hpc-ai:almalinux.im"
+    discord.almalinux: ID:1275885654944776222
+  gateway-foundation:
+    irc.libera: "#almalinux-foundation"
+    mattermost.almalinux: foundation
+    matrix.almalinux: "#foundation:almalinux.im"
+    discord.almalinux: ID:1275885735454572574
+  gateway-sig-altarch:
+    irc.libera: "#almalinux-sig-altarch"
+    mattermost.almalinux: sigaltarch
+    matrix.almalinux: "#sig-altarch:almalinux.im"
+    discord.almalinux: ID:1275885802928214214
+  gateway-sig-introductions:
+    irc.libera: "#almalinux-intros"
+    mattermost.almalinux: introductions
+    matrix.almalinux: "#introductions:almalinux.im"
+    discord.almalinux: ID:1275885891650588856
+  gateway-sig-cloud:
+    irc.libera: "#almalinux-sig-cloud"
+    mattermost.almalinux: sigcloud
+    matrix.almalinux: "#sig-cloud:almalinux.im"
+    discord.almalinux: ID:838793152054820875
+  gateway-sig-core:
+    irc.libera: "#almalinux-sig-core"
+    mattermost.almalinux: sigcore
+    matrix.almalinux: "#sig-core:almalinux.im"
+    discord.almalinux: ID:1275886018993590374
+  gateway-testing:
+    irc.libera: "#almalinux-testing-qa"
+    mattermost.almalinux: testing
+    matrix.almalinux: "#testing:almalinux.im"
+    discord.almalinux: ID:1275886092650020947
+  gateway-sig-livemedia:
+    irc.libera: "#almalinux-sig-livemedia"
+    mattermost.almalinux: siglivemedia
+    matrix.almalinux: "#sig-livemedia:almalinux.im"
+    discord.almalinux: ID:1275886150258786364
+
+  redict:
+    irc.libera: "#redict"
+    matrix.almalinuxmatrixorg: "#redict:matrix.org"

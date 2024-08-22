@@ -1,0 +1,17 @@
+if protocol == "mattermost" {
+  result = "mm"
+} else if protocol == "discord" {
+  result = "di"
+} else if protocol == "telegram" {
+  result = "tg"
+} else if protocol == "matrix" {
+  result = "mx"
+} else if protocol == "freenode" {
+  result = "fre"
+} else if protocol == "libera" {
+  result = "lib"
+} else if protocol == "irc" {
+  result = "irc"
+} else {
+  result = protocol
+}

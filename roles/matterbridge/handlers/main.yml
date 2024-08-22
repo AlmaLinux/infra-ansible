@@ -1,0 +1,5 @@
+---
+- name: Restart matterbridge
+  ansible.builtin.service:
+    name: matterbridge
+    state: restarted

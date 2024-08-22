@@ -61,3 +61,6 @@ stg.git.almalinux.org
 [gitea:children]
 gitea_prod
 gitea_stg
+
+[matterbridge]
+matterbridge.almalinux.org
