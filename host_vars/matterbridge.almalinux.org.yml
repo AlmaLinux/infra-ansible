@@ -27,7 +27,7 @@ matterbridge_config:
     SkipTLSVerify: "false"
     RemoteNickFormat: "[{TENGO}] <{NICK}> "
     StripMarkdown: "true"
-    JoinDelay: 200
+    JoinDelay: 1500
     RejoinDelay: 30
   discord.almalinux:
     Token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:discord_token',
