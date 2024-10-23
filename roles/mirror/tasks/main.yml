@@ -84,7 +84,7 @@
     - rsyncd
   tags:
     - firewalld
-  when: rsync_modules
+  when: mirror_rsync_modules
 
 - name: Create mirror directory
   ansible.builtin.file:
@@ -136,6 +136,7 @@
   tags:
     - bootstrap_mirror
   when: mirror_bootstrap_mirror
+  ignore_errors: yes
 
 - name: Setup cron for mirror
   ansible.builtin.cron:

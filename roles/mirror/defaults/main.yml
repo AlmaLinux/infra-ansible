@@ -48,6 +48,16 @@ mirror_repos:
     rsync_minute: "0"
     rsync_hour: "*/1"
     rsync_file: almalinux_rsync
+  - mirror_name: almalinux-kitten
+    rsync_command:
+      "sleep $(((RANDOM\\%3500)+1)) && /usr/bin/flock -n /var/run/almalinux-kitten_rsync.lock -c
+      \"/usr/bin/rsync -avSH --exclude='.~tmp~' --delete-delay --delay-updates
+      rsync://rsync.repo.almalinux.org::almalinux-kitten {{ mirror_path }}/almalinux-kitten/\""
+    rsync_name: mirror_rsync_kitten
+    rsync_user: root
+    rsync_minute: "0"
+    rsync_hour: "*/1"
+    rsync_file: almalinux-kitten_rsync
 
 mirror_bootstrap_mirror: true
 mirror_configure_crons: true
@@ -56,3 +66,6 @@ mirror_rsync_modules:
   almalinux:
     path: "{{ mirror_path }}/almalinux"
     comment: AlmaLinux repository
+  almalinux-kitten:
+    path: "{{ mirror_path }}/almalinux-kitten"
+    comment: AlmaLinux Kitten repository
