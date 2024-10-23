@@ -1,3 +1,3 @@
 ---
-mirror_path_use_subdir: false
+mirror_path_use_subdir: true
 mirror_create_fs: false
