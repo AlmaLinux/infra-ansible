@@ -1,0 +1,26 @@
+---
+# EPEL is installed by the common role
+- name: Install mosquitto
+  ansible.builtin.dnf:
+    name: mosquitto
+    state: present
+  tags:
+    - install_mosquitto
+    - mosquitto
+
+- name: Distribute mosquitto configuration
+  ansible.builtin.template:
+    src: mosquitto.conf.j2
+    dest: /etc/mosquitto/mosquitto.conf
+    mode: "0600"
+  tags:
+    - mosquitto
+
+- name: Start/enable mosquitto
+  ansible.builtin.systemd:
+    name: mosquitto.service
+    state: started
+    enabled: true
+  tags:
+    - mosquitto
+...

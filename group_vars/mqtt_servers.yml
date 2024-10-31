@@ -1,0 +1,5 @@
+---
+firewalld_extra_allow_ports:
+  - 1883/tcp # mqtt
+  - 1883/udp # mqtt
+...

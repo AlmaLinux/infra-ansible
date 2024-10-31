@@ -1,0 +1,9 @@
+---
+- name: Configure mqtt servers
+  hosts: mqtt_servers
+  roles:
+   - common
+   - community.zabbix.zabbix_agent
+   - devsec.hardening.os_hardening
+   - devsec.hardening.ssh_hardening
+   - mqtt
