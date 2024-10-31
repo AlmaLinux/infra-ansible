@@ -13,6 +13,8 @@
     src: mosquitto.conf.j2
     dest: /etc/mosquitto/mosquitto.conf
     mode: "0600"
+  notify:
+    - Restart mosquitto
   tags:
     - mosquitto
 
