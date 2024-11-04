@@ -66,4 +66,5 @@ gitea_stg
 matterbridge.almalinux.org
 
 [mqtt_servers]
-mqtt.almalinux.dev ansible_host=172.96.188.22
+mqtt.almalinux.org
+# mqtt.almalinux.dev ansible_host=172.96.188.22

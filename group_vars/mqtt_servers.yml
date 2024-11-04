@@ -1,5 +1,22 @@
 ---
-firewalld_extra_allow_ports:
-  - 1883/tcp # mqtt
-  - 1883/udp # mqtt
+beholder_ip: 10.0.21.189
+# Vaulted until migrated to new AWS Infra account
+gitupdater_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:gitupdater_ip',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}mqttserver"
+hashi_vault_generic_path: "kv/data/infra/general-ansible-vars"
+firewalld_extra_allow_ports: []
+firewalld_extra_rich_rules:
+  - rule family="ipv4" source address="{{ beholder_ip }}" port protocol="tcp" port="1883" accept
+  - rule family="ipv4" source address="{{ gitupdater_ip }}" port protocol="udp" port="1883" accept
+  - rule family="ipv4" source address="{{ zabbix_server_ip }}" port protocol="tcp" port="10050" accept
+mosquitto_listeners:
+  - port: 1883
+    address: 0.0.0.0
+  # - port: 8883
+  #   address: 127.0.0.1
+  # - port: 0
+  #   address: /tmp/mosquitto.sock
+zabbix_server_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_generic_path }}:zabbix_server_ip',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
 ...
