@@ -1,4 +1,5 @@
 ---
+albs_web_ip: 10.0.18.39
 beholder_ip: 10.0.21.189
 # Vaulted until migrated to new AWS Infra account
 gitupdater_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:gitupdater_ip',
@@ -7,6 +8,7 @@ hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}mqttserver"
 hashi_vault_generic_path: "kv/data/infra/general-ansible-vars"
 firewalld_extra_allow_ports: []
 firewalld_extra_rich_rules:
+  - rule family="ipv4" source address="{{ albs_web_ip }}" port protocol="tcp" port="1883" accept
   - rule family="ipv4" source address="{{ beholder_ip }}" port protocol="tcp" port="1883" accept
   - rule family="ipv4" source address="{{ gitupdater_ip }}" port protocol="udp" port="1883" accept
   - rule family="ipv4" source address="{{ zabbix_server_ip }}" port protocol="tcp" port="10050" accept
