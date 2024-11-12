@@ -1,9 +1,10 @@
 ---
 albs_web_ip: 10.0.18.39
 beholder_ip: 10.0.21.189
-# Vaulted until migrated to new AWS Infra account
-gitupdater_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:gitupdater_ip',
-        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+gitupdater_ip: 10.0.26.90
+# # Vaulted until migrated to new AWS Infra account
+# gitupdater_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:gitupdater_ip',
+#         token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
 hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}mqttserver"
 hashi_vault_generic_path: "kv/data/infra/general-ansible-vars"
 firewalld_extra_allow_ports: []
