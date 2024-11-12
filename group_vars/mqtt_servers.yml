@@ -1,0 +1,32 @@
+---
+albs_web_ip: 10.0.18.39
+beholder_ip: 10.0.21.189
+gitupdater_ip: 10.0.26.90
+# # Vaulted until migrated to new AWS Infra account
+# gitupdater_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:gitupdater_ip',
+#         token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}mqttserver"
+hashi_vault_generic_path: "kv/data/infra/general-ansible-vars"
+firewalld_extra_allow_ports: []
+firewalld_extra_rich_rules:
+  - rule family="ipv4" source address="{{ albs_web_ip }}" port protocol="tcp" port="1883" accept
+  - rule family="ipv4" source address="{{ albs_web_ip }}" port protocol="udp" port="1883" accept
+  - rule family="ipv4" source address="{{ beholder_ip }}" port protocol="tcp" port="1883" accept
+  - rule family="ipv4" source address="{{ beholder_ip }}" port protocol="udp" port="1883" accept
+  - rule family="ipv4" source address="{{ gitupdater_ip }}" port protocol="tcp" port="1883" accept
+  - rule family="ipv4" source address="{{ gitupdater_ip }}" port protocol="udp" port="1883" accept
+  - rule family="ipv4" source address="{{ zabbix_server_ip }}" port protocol="tcp" port="10050" accept
+mosquitto_settings:
+  general:
+    per_listener_settings: "true"
+    password_file: /etc/mosquitto/passwd-file
+  listeners:
+    - port: 1883
+      address: "{{ ansible_all_ipv4_addresses | ipaddr('private') | first }}"
+    # - port: 8883
+    #   address: 127.0.0.1
+    # - port: 0
+    #   address: /tmp/mosquitto.sock
+zabbix_server_ip: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_generic_path }}:zabbix_server_ip',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+...

@@ -1,0 +1,6 @@
+---
+- name: Restart mosquitto
+  ansible.builtin.systemd:
+    name: mosquitto.service
+    state: restarted
+...
