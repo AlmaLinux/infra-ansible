@@ -9,7 +9,10 @@ hashi_vault_generic_path: "kv/data/infra/general-ansible-vars"
 firewalld_extra_allow_ports: []
 firewalld_extra_rich_rules:
   - rule family="ipv4" source address="{{ albs_web_ip }}" port protocol="tcp" port="1883" accept
+  - rule family="ipv4" source address="{{ albs_web_ip }}" port protocol="udp" port="1883" accept
   - rule family="ipv4" source address="{{ beholder_ip }}" port protocol="tcp" port="1883" accept
+  - rule family="ipv4" source address="{{ beholder_ip }}" port protocol="udp" port="1883" accept
+  - rule family="ipv4" source address="{{ gitupdater_ip }}" port protocol="tcp" port="1883" accept
   - rule family="ipv4" source address="{{ gitupdater_ip }}" port protocol="udp" port="1883" accept
   - rule family="ipv4" source address="{{ zabbix_server_ip }}" port protocol="tcp" port="10050" accept
 mosquitto_settings:
@@ -18,7 +21,7 @@ mosquitto_settings:
     password_file: /etc/mosquitto/passwd-file
   listeners:
     - port: 1883
-      address: 0.0.0.0
+      address: "{{ ansible_all_ipv4_addresses | ipaddr('private') | first }}"
     # - port: 8883
     #   address: 127.0.0.1
     # - port: 0
