@@ -127,3 +127,5 @@ gitea_config:
       ENABLED: "true"
       SHCEDULE: "@midnight"
       OLDER_THAN: 24h
+    webhook:
+      DELIVER_TIMEOUT: 300
