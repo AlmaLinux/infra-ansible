@@ -1,0 +1,90 @@
+---
+- name: extract downloaded {{ mantisbt_pkg_name }}
+  ansible.builtin.unarchive:
+    src: '{{ mantisbt_tarball_local_dir }}/{{ mantisbt_pkg_name }}'
+    dest: '{{ webserver_rootdoc }}'
+    remote_src: true
+    mode: 0755
+    extra_opts:
+    - --transform
+    - "s/mantisbt-{{ mantisbt_version }}/mantisbt/"
+
+- name: Install python packages needed to create databases and db users
+  ansible.builtin.dnf:
+    name: python3-PyMySQL
+  when:
+    - dbserver == 'mariadb-server' or dbserver == 'mysql-server'
+
+#We have to run as root in order to login without password, but we are running as a privileged user != from root
+- name: Create mantis database.
+  community.mysql.mysql_db:
+    name: "{{ mantisbt_db_name }}"
+    state: present
+    login_user: root
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  become: true
+  become_user: root
+
+#We have to run as root in order to login without password, but we are running as a privileged user != from root
+- name: Create mantis database user
+  community.mysql.mysql_user:
+    name: "{{ mantisbt_db_user }}"
+    password: "{{ mantisbt_db_pass }}"
+    priv: "{{ mantisbt_db_name }}.*:ALL"
+    state: present
+    login_user: root
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  become: true
+  become_user: root
+
+- name: Call the mantis configuration page
+  ansible.builtin.uri:
+    url: http://localhost/mantisbt/admin/install.php
+    method: POST
+    body_format: form-urlencoded
+    body:
+      install: 2
+      db_type: mysqli
+      hostname: localhost
+      db_username: '{{ mantisbt_db_user }}'
+      db_password: '{{ mantisbt_db_pass }}'
+      database_name: '{{ mantisbt_db_name }}'
+      admin_username:
+      admin_password:
+      db_table_prefix: mantis
+      db_table_plugin_prefix: plugin
+      db_table_suffix: _table
+      timezone: UTC
+      path: http://127.0.0.1/mantisbt/
+      go: Install/Upgrade Database
+    validate_certs: false
+    status_code: 200
+    return_content: true
+  register: mantisbt_installation_output
+
+#- name: save the output
+#  ansible.builtin.copy:
+#    content: '{{ mantisbt_installation_output.content }}'
+#    dest: /tmp/res.html
+#    backup: yes
+
+- name: Store the g_crypto_master_salt retrieved from submitted form
+  ansible.builtin.set_fact:
+    retrieved_salt: "{{ mantisbt_installation_output.content | regex_search('g_crypto_master_salt     = (.*);','\\1') }}"
+
+#- name: Print retrieved salt
+#  ansible.builtin.debug:
+#     msg: 'retrieved_salt={{ retrieved_salt[0] }} tipo={{ retrieved_salt|type_debug }}'
+
+- name: Deploy the config_inc.php file
+  ansible.builtin.template:
+    src: config_inc.php.j2
+    dest: /var/www/html/mantisbt/config/config_inc.php
+    backup: yes
+    mode: 0644
+
+- name: Remove the admin directory
+  ansible.builtin.file:
+    dest: /var/www/html/mantisbt/admin
+    state: absent
+...

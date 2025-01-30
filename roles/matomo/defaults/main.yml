@@ -1,0 +1,101 @@
+---
+# defaults file for ansible-role-matomo
+# Php verion
+matomo_php_version: 8.2
+
+# Web server
+webserver:
+  package: nginx
+  proc_user: nginx
+  proc_group: nginx
+  web_service_name: nginx
+  web_service_ports:    #Used by firewalld rule
+    - http
+    - https
+php_fpm:
+  proc_user: apache
+  proc_group: apache
+
+# DB Server
+dbserver: mysql-server
+dbclient: mysql
+dbserver_service: mysqld
+
+# Matomo source package
+matomo_src_base_url: https://builds.matomo.org
+matomo_src_package: matomo-latest.zip
+matomo_tarball_local_dir: /opt
+
+# Architecture
+matomo_max_int: "{{ (ansible_userspace_bits == '64') | ternary('9223372036854775807', '2147483647') }}"
+
+# General
+matomo_domain: "matomo.lab.local"
+matomo_protocol: "https"
+matomo_url: "{{ matomo_protocol }}://{{ matomo_domain }}/"
+matomo_timezone: "America/Toronto"
+matomo_https_certificate_admin_email: "lucecca@yahoo.it"
+
+# Software sources
+matomo_debian_repository_domain: "debian.matomo.org"
+matomo_debian_repository_key_id: "1FD752571FE36FF23F78F91B81E2E78B66FED89E"
+matomo_debian_repository_key_url: "http://{{ matomo_debian_repository_domain }}/repository.gpg"
+matomo_debian_repository_url: "https://{{ matomo_debian_repository_domain }}/"
+matomo_debian_automatic_upgrades: "true"
+
+# Paths
+matomo_path:
+  docroot: "/var/www/html"
+  docroot_app: "/var/www/html/matomo"
+  config: "/etc/matomo"
+  temporary: "/tmp"
+  pkey_dir: "/etc/matomo/private-key"
+  cert_dir: "/etc/matomo"
+matomo_pkey: matomo-selfsigned.key
+matomo_cert: matomo-selfsigned.crt
+matomo_geoip_data_month: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}"
+matomo_geoip_data_filename: "dbip-city-lite-{{ matomo_geoip_data_month }}.mmdb"
+matomo_geoip_data_compressed: "{{ matomo_geoip_data_filename }}.gz"
+matomo_geoip_data_url: "https://download.db-ip.com/free/{{ matomo_geoip_data_compressed }}"
+
+# Web configuration
+matomo_configure_web_server: true
+matomo_web_config_dir_main: "/etc/nginx"
+matomo_web_config_dir:
+  conf_dir: "{{ matomo_web_config_dir_main }}/conf.d"
+matomo_web_config_file:
+  conf_file: "{{ matomo_web_config_dir['conf_dir'] }}/matomo.conf"
+
+# Database
+matomo_db_server: "{{ inventory_hostname }}"
+matomo_db:
+  host: "{{ (matomo_db_server == inventory_hostname) | ternary('127.0.0.1', matomo_db_server) }}"
+  name: "matomo"
+  user: "matomo"
+  password: "matomo"
+  table_prefix: ""
+  adapter: "PDO\\MYSQL"
+  schema: "Mysql"
+
+# Salts
+matomo_salt: "{{ lookup('vars', 'matomo_max_int') | random | to_uuid | hash('sha512') }}"
+matomo_useridsalt: "{{ lookup('password', '/dev/null length=40') }}"
+
+# Hosted site
+matomo_hosted_site_domain: "example.com"
+matomo_hosted_site_protocol: "https"
+matomo_hosted_site:
+  url: "{{ matomo_hosted_site_protocol }}://{{ matomo_hosted_site_domain }}/"
+  timezone: "{{ matomo_timezone }}"
+  ecommerce: 0
+  currency: "USD"
+matomo_hosted_site_name: "Example"
+
+# Superuser
+matomo_superuser_password: "matomoadm"
+matomo_superuser_email: "operations@example.com"
+matomo_superuser_name: "admin"
+matomo_superuser_alias: "{{ matomo_superuser_name }}"
+# As per https://github.com/matomo-org/matomo/blob/3.x-dev/plugins/UsersManager/API.php#L1317
+matomo_superuser_token_auth_seed: "{{ matomo_superuser_name ~ ansible_date_time.iso8601_micro ~ matomo_superuser_password ~ matomo_salt }}"
+matomo_superuser_token_auth: "{{ lookup('vars', 'matomo_superuser_token_auth_seed') | hash('sha512') }}"

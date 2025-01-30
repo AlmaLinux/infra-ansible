@@ -1,0 +1,7 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for pinnwand
+- name: reload httpd webserver
+  ansible.builtin.systemd:
+    name: httpd
+    state: reloaded

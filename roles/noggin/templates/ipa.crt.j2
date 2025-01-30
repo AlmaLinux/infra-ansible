@@ -1,0 +1,6 @@
+{% for crt_result in ipa_cert.results %}
+{# We print the crt only when the result code is succesfull rc==0 #}
+{% if crt_result.rc == 0 %}
+{{ crt_result.stdout}}
+{% endif %}
+{% endfor %}

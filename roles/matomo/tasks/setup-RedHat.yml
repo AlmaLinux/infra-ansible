@@ -1,0 +1,17 @@
+---
+- name: Include role repo-epel
+  ansible.builtin.include_role:
+    name: '{{ repo_epel_role_name }}'
+
+- name: Ensure the crb repository is enabled for major os release equal 9
+  community.general.dnf_config_manager:
+    name: crb
+    state: enabled
+  when: ansible_distribution_major_version|int == 9
+
+- name: Ensure the crb repository is enabled for major os release equal 8
+  community.general.dnf_config_manager:
+    name: crb
+    state: enabled
+  when: ansible_distribution_major_version|int == 8
+...

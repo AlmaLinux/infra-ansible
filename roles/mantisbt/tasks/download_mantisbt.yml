@@ -1,0 +1,7 @@
+---
+- name: download mantis package
+  ansible.builtin.get_url:
+    url: '{{ mantisbt_src_base_url }}/{{ mantisbt_version }}/{{ mantisbt_pkg_name }}'
+    dest: '{{ mantisbt_tarball_local_dir }}/{{ mantisbt_pkg_name }}'
+    checksum: 'sha512:{{ mantisbt_src_base_url }}/{{ mantisbt_version }}/{{ mantisbt_digest_name }}'
+...
