@@ -4,7 +4,7 @@ firewalld_extra_allow_ports:
   - "80/tcp"
   - "443/tcp"
 
-gitea_version: 1.21.11
+gitea_version: 1.22.6
 gitea_database: mysql
 gitea_hostname: git.almalinux.org
 
