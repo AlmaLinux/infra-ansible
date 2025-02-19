@@ -1,0 +1,25 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for mantisbt
+- name: install webserver
+  ansible.builtin.include_tasks:
+    file: install_webserver.yml
+
+- name: install dbserver
+  ansible.builtin.include_tasks:
+    file: install_dbserver.yml
+
+- name: setup environment
+  ansible.builtin.include_tasks:
+    file: setup_environment.yml
+
+- name: download mantis
+  ansible.builtin.include_tasks:
+    file: download_mantisbt.yml
+  when: install_mantis|default(false)
+
+- name: install mantis
+  ansible.builtin.include_tasks:
+    file: install_mantisbt.yml
+  when: install_mantis|default(false)
+...

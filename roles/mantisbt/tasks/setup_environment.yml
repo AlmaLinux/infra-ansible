@@ -1,0 +1,36 @@
+---
+#Verify login_page exists
+- name: verify login page exists
+  ansible.builtin.stat:
+    path: '{{ webserver_rootdoc}}/mantisbt/login_page.php'
+  register: login_page_php
+
+# If login page is not retrieved then mantisbt is not installed
+- name: Retrieve Login page
+  ansible.builtin.uri:
+    url: http://localhost/mantisbt/login_page.php
+    follow_redirects: safe
+    force: true
+    method: GET
+    return_content: true
+  register: login_page
+  when: login_page_php.stat.exists
+
+- name: verify installed version if any
+  ansible.builtin.stat:
+    path: '{{ webserver_rootdoc }}/mantisbt/core/constant_inc.php'
+  register: constant_inc_php
+
+- name: Retrieve mantisbt version if constant_inc.php file exists
+  ansible.builtin.command: "grep ^'define.*MANTIS_VERSION.*{{ mantisbt_version }}.*);' {{ webserver_rootdoc }}/mantisbt/core/constant_inc.php"
+  register: grep_version_result
+  changed_when: false # I do not want that grep command is counted as changed
+  ignore_errors: true # In case version installed is different then the one required is not a failure
+  when: constant_inc_php.stat.exists
+
+- name: Decide if install or not mantisbt
+  ansible.builtin.set_fact:
+    install_mantis: true
+  when: (login_page_php.stat.exists and "Login" not in login_page.content) or (not login_page_php.stat.exists) or (constant_inc_php.stat.exists and grep_version_result.rc != 0) or (not constant_inc_php.stat.exists) or force_mnatisbt_installation
+
+...
