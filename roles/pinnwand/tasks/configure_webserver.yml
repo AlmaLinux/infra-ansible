@@ -1,0 +1,10 @@
+---
+- name: configure web server to forward http request toward pinnwand web server
+  ansible.builtin.template:
+    src: virtual_host_pinnwand.conf.j2
+    dest: /etc/httpd/conf.d/pinnwand.conf
+    backup: yes
+    mode: 0644
+  notify:
+    - reload httpd webserver
+...
