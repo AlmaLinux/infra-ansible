@@ -1,0 +1,22 @@
+#SPDX-License-Identifier: MIT-0
+---
+webserver: httpd
+webserver_rootdoc: /var/www/html
+#Used by firewalld rule
+web_services:
+  - http
+  - https
+dbserver: mysql-server
+dbclient: mysql
+dbserver_service: mysqld
+mantisbt_db_type: mysqli
+mantisbt_db_name: bugtracker #This is the default database name suggested by the installation wizard
+mantisbt_db_user: mantisbt
+mantisbt_db_pass: mantisbt
+
+mantisbt_src_base_url: https://sourceforge.net/projects/mantisbt/files/mantis-stable
+manstisbt_src_extension: tar.gz
+mantisbt_pkg_name: 'mantisbt-{{ mantisbt_version }}.{{ manstisbt_src_extension }}' #mantisbt-2.27.0.tar.gz
+mantisbt_digest_name: '{{ mantisbt_pkg_name }}.digests' #mantisbt-2.27.0.tar.gz.digests
+mantisbt_tarball_local_dir: /opt
+# defaults file for mantisbt
