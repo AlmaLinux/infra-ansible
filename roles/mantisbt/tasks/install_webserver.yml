@@ -1,0 +1,28 @@
+---
+- name: install web server {{ webserver}}
+  ansible.builtin.dnf:
+    name:
+      - '{{ webserver}}'
+      - php
+      - php-curl
+      - php-gd
+      - php-mysqlnd
+      - mod_ssl
+    state: latest
+
+- name: enable web server service
+  ansible.builtin.service:
+    name: '{{ webserver}}'
+    enabled: true
+    state: started
+
+- name: enable firewalld rule
+  ansible.posix.firewalld:
+    service: '{{ item }}'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    '{{ web_services }}'
+
+...
