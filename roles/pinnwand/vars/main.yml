@@ -1,0 +1,4 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for pinnwand
+pinnwand_fqdn: pinnwand.local

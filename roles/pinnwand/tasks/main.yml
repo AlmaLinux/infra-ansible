@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: install pinnwand creating a virtualenvironment
+  ansible.builtin.include_tasks:
+    file: install_dbserver.yml
+
+- name: install pinnwand creating a virtualenvironment
+  ansible.builtin.include_tasks:
+    file: install_pinnwand.yml
+
+- name: configure webserver to proxying the request toward apache webserver
+  ansible.builtin.include_tasks:
+    file: configure_webserver.yml
+...
