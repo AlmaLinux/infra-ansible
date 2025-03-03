@@ -4,3 +4,10 @@
   ansible.builtin.systemd:
     name: httpd
     state: reloaded
+
+- name: Start pinnwand service
+  ansible.builtin.systemd:
+    daemon_reload: true
+    enabled: true
+    name: pinnwand
+    state: started

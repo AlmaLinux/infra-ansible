@@ -11,7 +11,7 @@
     name: pinnwand
     virtualenv: '{{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/virtual-environment'
     virtualenv_command: '/usr/bin/python3 -m venv'
-    state: latest
+    state: present
   become: true
   become_user: '{{ pinnwand_os_user }}'
 
@@ -20,7 +20,7 @@
     name: pymysql
     virtualenv: '{{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/virtual-environment'
     virtualenv_command: '/usr/bin/python3 -m venv'
-    state: latest
+    state: present
   become: true
   become_user: '{{ pinnwand_os_user }}'
 
@@ -68,13 +68,6 @@
     src: pinnwand.service.j2
     dest: /etc/systemd/system/pinnwand.service
     backup: true
-  register: deployed_pinnwand_service
-
-- name: Enable and start deployed pinnwand service
-  ansible.builtin.systemd:
-    daemon_reload: true
-    enabled: true
-    name: pinnwand
-    state: started
-  when: deployed_pinnwand_service.changed
+    mode: "0644"
+  notify: Start pinnwand service
 ...

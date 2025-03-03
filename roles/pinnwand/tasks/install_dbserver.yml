@@ -3,7 +3,7 @@
     name:
       - '{{ pinnwand_dbserver }}'
       - '{{ pinnwand_dbclient }}'
-    state: latest
+    state: present
 
 - name: Enable dbserver service
   ansible.builtin.service:
