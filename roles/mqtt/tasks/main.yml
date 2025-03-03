@@ -1,0 +1,45 @@
+---
+# EPEL is installed by the common role
+- name: Install mosquitto
+  ansible.builtin.dnf:
+    name: mosquitto
+    state: present
+  tags:
+    - install_mosquitto
+    - mosquitto
+
+- name: Write mosquitto password file
+  vars:
+    mosquitto_passwd_creds: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:mosquitto_passwd_creds',
+      token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+  ansible.builtin.copy:
+    content: "{{ mosquitto_passwd_creds }}"
+    dest: "{{ mosquitto_settings.general.password_file }}"
+    owner: mosquitto
+    group: mosquitto
+    mode: "0600"
+  notify:
+    - Restart mosquitto
+  tags:
+    - mosquitto
+    - mosquitto_config
+
+- name: Distribute mosquitto configuration
+  ansible.builtin.template:
+    src: mosquitto.conf.j2
+    dest: /etc/mosquitto/mosquitto.conf
+    mode: "0600"
+  notify:
+    - Restart mosquitto
+  tags:
+    - mosquitto
+    - mosquitto_config
+
+- name: Start/enable mosquitto
+  ansible.builtin.systemd:
+    name: mosquitto.service
+    state: started
+    enabled: true
+  tags:
+    - mosquitto
+...

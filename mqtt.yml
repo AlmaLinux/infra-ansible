@@ -1,0 +1,13 @@
+---
+- name: Configure mqtt servers
+  hosts: mqtt_servers
+  remote_user: ec2-user
+  become: true
+  roles:
+   - common
+   # - artis3n.tailscale
+   - community.zabbix.zabbix_agent
+   - devsec.hardening.os_hardening
+   - devsec.hardening.ssh_hardening
+   # - almalinux.wazuh.agent
+   - mqtt
