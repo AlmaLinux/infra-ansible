@@ -1,13 +1,13 @@
-- name: install db server {{ dbserver}}
+- name: Install db server {{ dbserver}}
   ansible.builtin.dnf:
     name:
-      - '{{ dbserver}}'
-      - '{{ dbclient }}'
+      - '{{ pinnwand_dbserver }}'
+      - '{{ pinnwand_dbclient }}'
     state: latest
 
-- name: enable dbserver service
+- name: Enable dbserver service
   ansible.builtin.service:
-    name: '{{ dbserver_service }}'
+    name: '{{ pinnwand_dbserver_service }}'
     enabled: true
     state: started
 

@@ -1,25 +1,27 @@
 ---
-- name: create pinnwand os user
+- name: Create pinnwand os user
   ansible.builtin.user:
     name: '{{ pinnwand_os_user }}'
     state: present
     shell: /sbin/nologin
     home: '{{ pinnwand_home_dir }}/{{ pinnwand_os_user }}'
 
-- name: install pinwnwand inside a dedicated virtualenvironment
+- name: Install pinwnwand inside a dedicated virtualenvironment
   ansible.builtin.pip:
     name: pinnwand
     virtualenv: '{{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/virtual-environment'
     virtualenv_command: '/usr/bin/python3 -m venv'
     state: latest
+  become: true
   become_user: '{{ pinnwand_os_user }}'
 
-- name: install PyMySQL inside the virtualenvironment
+- name: Install PyMySQL inside the virtualenvironment
   ansible.builtin.pip:
     name: pymysql
     virtualenv: '{{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/virtual-environment'
     virtualenv_command: '/usr/bin/python3 -m venv'
     state: latest
+  become: true
   become_user: '{{ pinnwand_os_user }}'
 
 - name: Install python packages needed to create databases and db users
@@ -28,7 +30,7 @@
   when:
     - dbserver == 'mariadb-server' or dbserver == 'mysql-server'
 
-#We have to run as root in order to login without password, but we are running as a privileged user != from root
+# We have to run as root in order to login without password, but we are running as a privileged user != from root
 - name: Create pinnwand database.
   community.mysql.mysql_db:
     name: "{{ pinnwand_db_name }}"
@@ -38,7 +40,7 @@
   become: true
   become_user: root
 
-#We have to run as root in order to login without password, but we are running as a privileged user != from root
+# We have to run as root in order to login without password, but we are running as a privileged user != from root
 - name: Create pinnwand database user
   community.mysql.mysql_user:
     name: "{{ pinnwand_db_user }}"
@@ -50,22 +52,22 @@
   become: true
   become_user: root
 
-#Deploy pinnwand toml configuration file
-- name: deploy pinnwand toml configuration file
+# Deploy pinnwand toml configuration file
+- name: Deploy pinnwand toml configuration file
   ansible.builtin.template:
     src: pinnwand.toml.j2
     dest: '{{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/pinnwand.toml'
-    backup: yes
+    backup: true
     owner: '{{ pinnwand_os_user }}'
     group: '{{ pinnwand_os_user }}'
-    mode: 0600
+    mode: "0600"
 
-#Create systemd service for pinnwand automatic startup
-- name: deploy the service unit file for pinnwand
+# Create systemd service for pinnwand automatic startup
+- name: Deploy the service unit file for pinnwand
   ansible.builtin.template:
     src: pinnwand.service.j2
     dest: /etc/systemd/system/pinnwand.service
-    backup: yes
+    backup: true
   register: deployed_pinnwand_service
 
 - name: Enable and start deployed pinnwand service
