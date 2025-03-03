@@ -127,7 +127,7 @@
   when: mirror_create_fs
 
 # only make sure the rsync *can* succeed, let the cron handle the full sync
-- name: Bootstrap mirror # noqa command-instead-of-module
+- name: Bootstrap mirror # noqa command-instead-of-module ignore-errors
   ansible.builtin.command: "{{ item.bootstrap_command }}"
   args:
     creates: "{{ item.creates }}"
@@ -136,7 +136,7 @@
   tags:
     - bootstrap_mirror
   when: mirror_bootstrap_mirror
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Setup cron for mirror
   ansible.builtin.cron:

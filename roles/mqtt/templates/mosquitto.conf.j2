@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+# Config file for mosquitto
+# See mosquitto.conf(5) for more information.
+
+{% for listener in mosquitto_settings.listeners %}
+listener {{ listener.port }}{% if listener.address %} {{ listener.address }}{% endif %}
+{% endfor %}
+
+{% for name, value in mosquitto_settings.general.items() %}
+{{ name }} {{ value }}
+{% endfor %}
