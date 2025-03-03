@@ -1,4 +1,4 @@
-- name: Install db server {{ dbserver}}
+- name: Install db server {{ pinnwand_dbserver }}
   ansible.builtin.dnf:
     name:
       - '{{ pinnwand_dbserver }}'

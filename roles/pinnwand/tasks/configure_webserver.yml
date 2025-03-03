@@ -6,5 +6,5 @@
     backup: true
     mode: "0644"
   notify:
-    - reload httpd webserver
+    - Reload httpd webserver
 ...

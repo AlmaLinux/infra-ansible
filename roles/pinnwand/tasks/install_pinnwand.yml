@@ -28,7 +28,7 @@
   ansible.builtin.dnf:
     name: python3-PyMySQL
   when:
-    - dbserver == 'mariadb-server' or dbserver == 'mysql-server'
+    - pinnwand_dbserver == 'mariadb-server' or pinnwand_dbserver == 'mysql-server'
 
 # We have to run as root in order to login without password, but we are running as a privileged user != from root
 - name: Create pinnwand database.
