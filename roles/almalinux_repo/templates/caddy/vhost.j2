@@ -1,0 +1,21 @@
+{{ repo.name }} {
+
+    root * {{ repo.path }}
+
+{% if repo.get('file_server', false) %}
+    file_server {
+        {{ repo.file_server }}
+    }
+{% endif %}
+
+{% include 'expires.j2' %}
+
+    log {
+        output file /var/log/caddy/{{ repo.name }}.access.log {
+            roll_keep_for 30d
+        }
+    }
+
+    {% if repo.get('custom_ssl', false) %}tls /etc/caddy/{{ repo.name }}.fullchain.pem /etc/caddy/{{ repo.name }}.privkey.pem{% endif %}
+
+}

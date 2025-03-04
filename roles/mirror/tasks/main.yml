@@ -194,5 +194,9 @@
     state: started
   when: mirror_rsync_modules
 
-# TODO: correctly handle deploy-repo-alma user for tier0 mirrors
-# TODO: handle keying tier0 servers accordingly to accept syncs from repo.alma
+- name: User
+  ansible.builtin.include_tasks: user.yml
+
+- name: Extra tier0 setup
+  ansible.builtin.include_tasks: tier0.yml
+  when: mirror_tier0
