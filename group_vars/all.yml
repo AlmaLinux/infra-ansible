@@ -18,6 +18,8 @@ common_packages:
   - lsof
   - nano
   - nload
+  # needed by many ansible roles that adjust selinux
+  - python3-policycoreutils
   - telnet
   - vim
   - yum-utils

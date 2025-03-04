@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+{% for repo in almalinux_repo_caddy_vhosts %}
+{% include 'vhost.j2' %}
+
+{% if repo.get('enable_http', false) %}
+http://{% include 'vhost.j2' %}
+
+{% endif %}
+{% endfor %}
