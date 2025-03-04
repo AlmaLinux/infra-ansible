@@ -1,5 +1,15 @@
 {{ repo.name }} {
 
+{% if repo.redirects is defined %}
+{% for redirect in repo.redirects %}
+    route {{ redirect.path }} {
+        {% if redirect.strip_prefix %}uri strip_prefix {{ redirect.strip_prefix }}
+        {% endif %}
+        redir {{ redirect.url }} {{ redirect.type | default(301) }}
+    }
+{% endfor %}
+{% endif %}
+
     root * {{ repo.path }}
 
 {% if repo.get('file_server', false) %}

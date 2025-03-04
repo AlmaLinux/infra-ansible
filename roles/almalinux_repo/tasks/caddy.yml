@@ -25,39 +25,9 @@
     - caddy
     - selinux
 
-- name: Set SELinux context for content main content dir
-  community.general.sefcontext:
-    target: '{{ almalinux_repo_dir }}(/.*)?'
-    setype: httpd_sys_ra_content_t
-    state: present
-  register: set_selinux_context
-  tags:
-    - caddy
-    - selinux
-
-- name: Set SELinux context for content subdirectories
-  community.general.sefcontext:
-    target: '{{ almalinux_repo_dir }}{{ item }}(/.*)?'
-    setype: httpd_sys_ra_content_t
-    state: present
-  register: set_selinux_context
-  tags:
-    - caddy
-    - selinux
-  loop: "{{ almalinux_repo_dirs | map(attribute='type') | unique }}"
-
 # need to apply new contexts "now" to prevent potential issues in later tasks
 - name: Apply new SELinux file context to filesystem for logs # noqa no-handler no-changed-when
   ansible.builtin.command: restorecon -irv /var/log/caddy
-  when: set_selinux_context.changed
-  tags:
-    - caddy
-    - selinux
-
-# need to apply new contexts "now" to prevent potential issues in later tasks
-- name: Apply new SELinux file context to filesystem for content # noqa no-handler no-changed-when
-  ansible.builtin.command: restorecon -irv {{ almalinux_repo_dir }} {{ almalinux_repo_dirs | map(attribute='type') | unique |
-    map('regex_replace', '^', almalinux_repo_dir) | join(' ') }}
   when: set_selinux_context.changed
   tags:
     - caddy

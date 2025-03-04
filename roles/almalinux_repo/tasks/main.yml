@@ -50,5 +50,8 @@
   tags:
     - firewalld
 
+- name: SELinux
+  ansible.builtin.include_tasks: selinux.yml
+
 - name: Caddy
   ansible.builtin.include_tasks: caddy.yml
