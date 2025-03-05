@@ -1,14 +1,14 @@
 ---
-- name: install db server {{ dbserver}}
+- name: Install db server {{ mantisbt_dbserver }}
   ansible.builtin.dnf:
     name:
-      - '{{ dbserver}}'
-      - '{{ dbclient }}'
-    state: latest
+      - '{{ mantisbt_dbserver }}'
+      - '{{ mantisbt_dbclient }}'
+    state: present
 
-- name: enable dbserver service
+- name: Enable dbserver service
   ansible.builtin.service:
-    name: '{{ dbserver_service }}'
+    name: '{{ mantisbt_dbserver_service }}'
     enabled: true
     state: started
 
