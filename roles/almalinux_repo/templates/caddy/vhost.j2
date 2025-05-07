@@ -1,0 +1,31 @@
+{{ repo.name }} {
+
+{% if repo.redirects is defined %}
+{% for redirect in repo.redirects %}
+    route {{ redirect.path }} {
+        {% if redirect.strip_prefix %}uri strip_prefix {{ redirect.strip_prefix }}
+        {% endif %}
+        redir {{ redirect.url }} {{ redirect.type | default(301) }}
+    }
+{% endfor %}
+{% endif %}
+
+    root * {{ repo.path }}
+
+{% if repo.get('file_server', false) %}
+    file_server {
+        {{ repo.file_server }}
+    }
+{% endif %}
+
+{% include 'expires.j2' %}
+
+    log {
+        output file /var/log/caddy/{{ repo.name }}.access.log {
+            roll_keep_for 30d
+        }
+    }
+
+    {% if repo.get('custom_ssl', false) %}tls /etc/caddy/{{ repo.name }}.fullchain.pem /etc/caddy/{{ repo.name }}.privkey.pem{% endif %}
+
+}

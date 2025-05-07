@@ -1,0 +1,33 @@
+---
+- name: Create ALBS deploy user
+  ansible.builtin.user:
+    name: "{{ almalinux_repo_deploy_user }}"
+    comment: User used to receive pushes from ALBS
+    # disabled/no password
+    password: '!'
+
+- name: Ensure .ssh directory exists
+  ansible.builtin.file:
+    path: /home/{{ almalinux_repo_deploy_user }}/.ssh
+    state: directory
+    mode: '0700'
+    owner: "{{ almalinux_repo_deploy_user }}"
+    group: "{{ almalinux_repo_deploy_user }}"
+
+- name: Copy private key
+  ansible.builtin.copy:
+    content: "{{ almalinux_repo_deploy_user_private_key }}\n"
+    dest: /home/{{ almalinux_repo_deploy_user }}/.ssh/id_ed25519
+    mode: '0600'
+    owner: "{{ almalinux_repo_deploy_user }}"
+    group: "{{ almalinux_repo_deploy_user }}"
+  when: almalinux_repo_deploy_user_private_key is defined
+
+- name: Copy public key
+  ansible.builtin.copy:
+    content: "{{ almalinux_repo_deploy_user_pub_key }}\n"
+    dest: /home/{{ almalinux_repo_deploy_user }}/.ssh/id_ed25519.pub
+    mode: '0600'
+    owner: "{{ almalinux_repo_deploy_user }}"
+    group: "{{ almalinux_repo_deploy_user }}"
+  when: almalinux_repo_deploy_user_pub_key is defined

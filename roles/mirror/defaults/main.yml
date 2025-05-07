@@ -1,4 +1,5 @@
 ---
+mirror_tier0: false
 mirror_custom_ssl: false
 mirror_path: /mirror
 # use a /almalinux subdir within mirror_path if true

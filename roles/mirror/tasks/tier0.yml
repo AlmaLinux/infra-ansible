@@ -1,0 +1,8 @@
+---
+- name: Create main directory
+  ansible.builtin.file:
+    path: "{{ mirror_path }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ mirror_tier0_deploy_user }}"
+    group: "{{ mirror_tier0_deploy_user }}"

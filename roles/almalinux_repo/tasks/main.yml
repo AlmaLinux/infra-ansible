@@ -1,0 +1,57 @@
+---
+- name: User
+  ansible.builtin.include_tasks: user.yml
+
+- name: Set authorized_keys for root
+  ansible.posix.authorized_key:
+    user: "{{ almalinux_repo_deploy_user }}"
+    state: present
+    key: "{{ item }}"
+    exclusive: true
+  with_items:
+    - "{{ almalinux_repo_ssh_authorized_keys }}"
+
+- name: Create main directory
+  ansible.builtin.file:
+    path: "{{ almalinux_repo_dir }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Create repo directories
+  ansible.builtin.file:
+    path: "{{ almalinux_repo_dir }}{{ item.type }}/{{ item.repo }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ almalinux_repo_deploy_user }}"
+    group: "{{ almalinux_repo_deploy_user }}"
+  loop: "{{ almalinux_repo_dirs }}"
+
+- name: Create repo bind mounts
+  ansible.posix.mount:
+    path: "{{ almalinux_repo_dir }}/{{ item.repo }}"
+    src: "{{ almalinux_repo_dir }}{{ item.type }}/{{ item.repo }}"
+    opts: bind
+    state: mounted
+    fstype: none
+  loop: "{{ almalinux_repo_dirs }}"
+
+- name: Allow http/https traffic through firewalld
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    service: "{{ item }}"
+  loop:
+    - http
+    - https
+  tags:
+    - firewalld
+
+- name: SELinux
+  ansible.builtin.include_tasks: selinux.yml
+
+- name: Caddy
+  ansible.builtin.include_tasks: caddy.yml
