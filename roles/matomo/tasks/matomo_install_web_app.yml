@@ -1,0 +1,120 @@
+---
+- name: download matomo zip package
+  ansible.builtin.get_url:
+    url: '{{ matomo_src_base_url }}/{{ matomo_src_package }}'
+    dest: '{{ matomo_tarball_local_dir }}/{{ matomo_src_package }}'
+    backup: yes
+
+- name: extract downloaded {{ matomo_src_package }}
+  ansible.builtin.unarchive:
+    src: '{{ matomo_tarball_local_dir }}/{{ matomo_src_package }}'
+    dest: '{{ matomo_path["docroot"] }}'
+    remote_src: True
+    owner: '{{ php_fpm["proc_user"] }}'
+    group: '{{ php_fpm["proc_group"] }}'
+
+# STEP 1
+# Get url http:://{[ matomo_domain }} se contiene la stringa installation-progress allora imposta che ev
+# If login page is not retrieved then mantisbt is not installed
+
+- name: This is a trick to Setup a name resolution to localhost matomo fqdn
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.0.1 {{ matomo_domain }}"
+    backup: yes
+
+- name: verify port 443 is open
+  ansible.builtin.wait_for:
+    port: 443
+    host: '{{ matomo_domain }}'
+    timeout: 1
+  failed_when: False
+  register: check_port
+
+- name: We force webserver to restart because we foreseen https and it's not available
+  ansible.builtin.service:
+    name: '{{ webserver["web_service_name"] }}'
+    state: restarted
+  when:
+    - matomo_protocol == 'https'
+    - check_port.msg is defined  #wait_for will fire msg only in case of failure
+
+- name: Retrieve Setup page
+  ansible.builtin.uri:
+    url: '{{ matomo_protocol }}://{{ matomo_domain }}/index.php'
+    force: true
+    method: GET
+    return_content: true
+    validate_certs: false
+  register: setup_page
+
+- name: Configure Db for matomo 3rd step
+  ansible.builtin.uri:
+    url: '{{ matomo_protocol }}://{{ matomo_domain }}/index.php?action=databaseSetup'
+    force: true
+    body:
+       type: InnoDB
+       host: '{{ matomo_db["host"] }}'
+       username: '{{ matomo_db["user"] }}'
+       password: '{{ matomo_db["password"] }}'
+       dbname: '{{ matomo_db["name"] }}'
+       tables_prefix: '{{ matomo_db["table_prefix"] }}'
+       adapter: '{{ matomo_db["adapter"] }}'
+       schema: '{{ matomo_db["schema"] }}'
+       submit: 'Next »'
+    body_format: form-urlencoded
+    method: POST
+    follow_redirects: all
+    validate_certs: no
+    headers:
+      Cookie: "{{ setup_page.cookies_string }}"
+  when: "'installation-progress' in setup_page.content"
+
+- name: Setup Matomo super user
+  ansible.builtin.uri:
+    url: "{{ matomo_protocol }}://{{ matomo_domain }}/index.php?action=setupSuperUser&module=Installation"
+    body:
+      login: "{{ matomo_superuser_name }}"
+      password: "{{ matomo_superuser_password }}"
+      password_bis: "{{ matomo_superuser_password }}"
+      email: "{{ matomo_superuser_email }}"
+      subscribe_newsletter_piwikorg: 0
+      subscribe_newsletter_professionalservices: 0
+    body_format: form-urlencoded
+    method: POST
+    follow_redirects: all
+    validate_certs: no
+    headers:
+      Cookie: "{{ setup_page.cookies_string }}"
+  when: "'installation-progress' in setup_page.content"
+
+- name: Step 6 Configure first web-site
+  ansible.builtin.uri:
+    url: "{{ matomo_protocol }}://{{ matomo_domain }}/index.php?action=firstWebsiteSetup&module=Installation"
+    body:
+      siteName: "noggin.lab.local"
+      url: "https://noggin.lab.local"
+      timezone: "Europe/Rome"
+      ecommerce: 0
+    body_format: form-urlencoded
+    method: POST
+    follow_redirects: all
+    validate_certs: no
+    headers:
+      Cookie: "{{ setup_page.cookies_string }}"
+  when: "'installation-progress' in setup_page.content"
+
+- name: Step 8 finish configuratio action=finished&clientProtocol=https&module=Installation&site_idSite=1&site_name=noggin.lab.local
+  ansible.builtin.uri:
+    url: "{{ matomo_protocol }}://{{ matomo_domain }}/index.php?action=finished&module=Installation"
+    body:
+      setup_geoip2: 1
+      anonymise_ip: 1
+    body_format: form-urlencoded
+    method: POST
+    follow_redirects: all
+    validate_certs: no
+    headers:
+      Cookie: "{{ setup_page.cookies_string }}"
+  when: "'installation-progress' in setup_page.content"
+...
