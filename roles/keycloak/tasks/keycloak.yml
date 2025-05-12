@@ -1,0 +1,37 @@
+---
+- name: Create keycloak config dir
+  ansible.builtin.file:
+    path: /etc/keycloak
+    state: directory
+    mode: "0700"
+
+- name: Include middleware automation keycloak role
+  ansible.builtin.include_role:
+    name: middleware_automation.keycloak.keycloak_quarkus
+
+- name: Clone almalinux theme from git
+  ansible.builtin.git:
+    repo: git@github.com:AlmaLinux/almalinux-keycloak-theme.git
+    dest: tmp/almalinux-keycloak-theme
+    single_branch: yes
+    version: main
+    force: true
+  delegate_to: localhost
+  run_once: true
+
+- name: Copy almalinux theme
+  ansible.posix.synchronize:
+    src: tmp/almalinux-keycloak-theme/themes/almalinux
+    dest: /opt/keycloak/keycloak-{{ keycloak_quarkus_version }}/themes/
+    delete: true
+    rsync_opts:
+      - "--chown keycloak:keycloak"
+      - "--exclude .git"
+  register: keycloak_theme_updated
+
+# can't use a handler, we need to do this one at a time
+- name: Restart keycloak
+  ansible.builtin.include_role:
+    name: middleware_automation.keycloak.keycloak_quarkus
+    tasks_from: restart/serial
+  when: keycloak_theme_updated

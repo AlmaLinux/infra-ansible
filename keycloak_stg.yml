@@ -1,0 +1,48 @@
+---
+- name: Check required vars and bootstrap var
+  hosts: localhost
+  tasks:
+    - name: Are we bootstrapping?
+      ansible.builtin.pause:
+        prompt: "Are you really trying to bootstrap the cluster?  Press enter to continue or Ctrl-C to exit"
+      when: keycloak_mariadb_galera_bootstrap is defined and keycloak_mariadb_galera_bootstrap
+
+    - name: Check if var is set - {{ item }}
+      ansible.builtin.assert:
+        that: "{{ lookup('env', item) | length > 0 }}"
+        fail_msg: "{{ item }} is not set"
+      loop:
+        - VAULT_TOKEN
+        - IPA_USER
+        - IPA_PASSWORD
+
+- name: Gather facts from all hosts in group
+  vars:
+    keycloak_host_group: keycloak_galera_nodes_stg
+  hosts: "{{ keycloak_host_group }}"
+  # fact gathering handled with an explicit task below
+  gather_facts: false
+  tasks:
+    - name: Gather facts # noqa run-once[task]
+      ansible.builtin.setup:
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups[keycloak_host_group] }}"
+      run_once: true
+
+- name: Configure keycloak servers
+  # all groups/hosts listed here will be part of the galera/keycloak cluster
+  # be careful if adding new hosts/groups that this is the desired outcome
+  vars:
+    keycloak_host_group: keycloak_galera_nodes_stg
+  hosts: "{{ keycloak_host_group }}"
+  gather_facts: false # Set to 'false' because the previous play should have populated facts.
+                      # Or set to 'true' only if you specifically need to refresh facts
+                      # for the hosts matching the --limit AFTER the above has run.
+  roles:
+    - common
+    - ipa_client
+    - keycloak
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
