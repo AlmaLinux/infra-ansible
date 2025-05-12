@@ -1,0 +1,11 @@
+#!/bin/sh
+# {{ ansible_managed }}
+
+# dynamic based on domain. ex: /etc/letsencrypt/live/example.com
+cert_dir=$RENEWED_LINEAGE
+
+install -pD -m 700 -g caddy -o caddy $cert_dir/fullchain.pem /etc/caddy/{{ inventory_hostname }}.fullchain.pem
+install -pD -m 700 -g caddy -o caddy $cert_dir/privkey.pem /etc/caddy/{{ inventory_hostname }}.privkey.pem
+
+# only reload caddy if it is running
+systemctl is-active --quiet caddy.service && systemctl reload caddy.service

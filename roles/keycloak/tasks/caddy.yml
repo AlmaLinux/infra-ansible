@@ -1,0 +1,30 @@
+---
+- name: Install caddy copr repo
+  community.general.copr:
+    host: copr.fedorainfracloud.org
+    state: enabled
+    name: "@caddy/caddy"
+    chroot: epel-9-x86_64
+
+- name: Install caddy
+  ansible.builtin.package:
+    name: caddy
+    state: present
+
+- name: Enable caddy
+  ansible.builtin.service:
+    name: caddy
+    enabled: true
+
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+  when: keycloak_certbot_ssl
+
+- name: Upload caddy config
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    mode: '0700'
+    owner: caddy
+    group: caddy
+  notify: Restart caddy

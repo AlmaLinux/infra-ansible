@@ -1,0 +1,65 @@
+---
+staging: true
+
+keycloak_certbot_ssl: true
+
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}keycloak"
+
+firewalld_extra_allow_ports:
+  - "80/tcp"
+  - "443/tcp"
+
+sysctl_overwrite:
+  # Enable IPv4 traffic forwarding, needed for podman (mariadb galera cluster)
+  net.ipv4.ip_forward: 1
+
+keycloak_mariadb_version: 11.4
+keycloak_mariadb_user: keycloak
+keycloak_mariadb_password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:keycloak_mariadb_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+keycloak_mariadb_database: keycloak
+keycloak_mariadb_galera_root_password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:keycloak_mariadb_galera_root_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+keycloak_mariadb_galera_mariabackup_user: keycloak_mariabackup_user
+keycloak_mariadb_galera_mariabackup_password: "{{ lookup('community.hashi_vault.hashi_vault',
+  '{{ hashi_vault_path }}:keycloak_mariadb_galera_mariabackup_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+keycloak_mariadb_replication_user: keycloak_replication_user
+keycloak_mariadb_replication_password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:keycloak_mariadb_replication_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+keycloak_mariadb_galera_cluster_address: gcomm://{% for ip in headscale_ips %}{{ ip }}:4567{{ ',' if not loop.last }}{% endfor %}
+keycloak_mariadb_extra_flags: --wsrep_provider_options=ist.recv_addr={{ headscale_address }}:4568;ist.recv_bind=0.0.0.0:4568
+  --wsrep_node_incoming_address={{ headscale_address }} --wsrep_sst_receive_address={{ headscale_address }}
+keycloak_mariadb_galera_ports:
+  - 127.0.0.1:3306:3306
+  - 4444:4444
+  - 4567:4567
+  - 4568:4568
+
+rhbk_enable: false
+keycloak_quarkus_ha_enabled: true
+keycloak_quarkus_db_enabled: true
+keycloak_quarkus_metrics_enabled: true
+keycloak_quarkus_db_engine: mariadb
+keycloak_quarkus_db_user: "{{ keycloak_mariadb_user }}"
+keycloak_quarkus_db_pass: "{{ keycloak_mariadb_password }}"
+keycloak_quarkus_bootstrap_admin_password: "{{ lookup('community.hashi_vault.hashi_vault',
+  '{{ hashi_vault_path }}:keycloak_quarkus_bootstrap_admin_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') | default('') }}"
+keycloak_quarkus_version: 26.2.0
+keycloak_quarkus_jdbc_engine: mariadb
+keycloak_quarkus_hostname: stg.id.almalinux.org
+keycloak_quarkus_health_check_url: http://localhost:{{ keycloak_quarkus_http_port }}/realms/master/.well-known/openid-configuration
+keycloak_quarkus_proxy_headers: xforwarded
+keycloak_quarkus_http_relative_path: /
+keycloak_quarkus_transaction_xa_enabled: false
+keycloak_quarkus_proxy_mode: edge
+keycloak_quarkus_java_opts: -Djgroups.external_addr={{ tailscale_address }} -Djgroups.bind.address={{ tailscale_address }}
+keycloak_quarkus_systemd_wait_for_port: false
+
+# run health checks against localhost since we are running a cluster
+keycloak_quarkus_dest: /opt/keycloak
+keycloak_quarkus_installdir: "{{ keycloak_quarkus_dest }}/keycloak-{{ keycloak_quarkus_version }}"
+keycloak_quarkus_home: "{{ keycloak_quarkus_installdir }}"
+keycloak_quarkus_config_dir: "{{ keycloak_quarkus_home }}/conf"
+# end health check URL config

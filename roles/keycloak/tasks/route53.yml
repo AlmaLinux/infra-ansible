@@ -1,0 +1,21 @@
+---
+- name: Create AWS config dir
+  ansible.builtin.file:
+    path: /root/.aws
+    state: directory
+    mode: "0700"
+
+- name: Write AWS config file
+  vars:
+    aws_access_key_id:
+      "{{ lookup('community.hashi_vault.hashi_vault',
+      'kv/data/infra/{% if staging %}stg/{% endif %}aws/{{ keycloak_quarkus_hostname }}/route53:access_key',
+      token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+    aws_secret_access_key:
+      "{{ lookup('community.hashi_vault.hashi_vault',
+      'kv/data/infra/{% if staging %}stg/{% endif %}aws/{{ keycloak_quarkus_hostname }}/route53:secret_key',
+      token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+  ansible.builtin.template:
+    src: aws_config.j2
+    dest: /root/.aws/config
+    mode: "0600"

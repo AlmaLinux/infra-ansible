@@ -71,3 +71,19 @@ mqtt.almalinux.org
 
 [almalinux_repo]
 repo.almalinux.org ansible_host=170.249.210.186
+
+[keycloak_galera_nodes]
+keycloak01.id.almalinux.org
+keycloak02.id.almalinux.org
+keycloak03.id.almalinux.org
+
+[keycloak:children]
+keycloak_galera_nodes
+
+[keycloak_galera_nodes_stg]
+keycloak01.stg.id.almalinux.org ansible_host=3.216.78.167
+keycloak02.stg.id.almalinux.org ansible_host=44.205.6.79
+keycloak03.stg.id.almalinux.org ansible_host=54.237.151.67
+
+[keycloak_stg:children]
+keycloak_galera_nodes_stg

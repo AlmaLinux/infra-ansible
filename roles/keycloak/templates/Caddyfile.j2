@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+# The Caddyfile is an easy way to configure your Caddy web server.
+#
+# Unless the file starts with a global options block, the first
+# uncommented line is always the address of your site.
+#
+# To use your own domain name (with automatic HTTPS), first make
+# sure your domain's A/AAAA DNS records are properly pointed to
+# this machine's public IP, then replace ":80" below with your
+# domain name.
+
+{{ inventory_hostname }} {{ keycloak_quarkus_hostname }} {
+    @protected {
+        path_regexp ^/($|admin|welcome|metrics|health).*$
+    }
+
+    @allowedIPs {
+        remote_ip 100.64.0.0/10
+    }
+
+    handle @protected {
+        handle @allowedIPs {
+            reverse_proxy localhost:8080
+        }
+        respond "Access denied" 403
+    }
+
+    handle {
+        reverse_proxy localhost:8080
+    }
+
+    {% if keycloak_certbot_ssl %}tls /etc/caddy/{{ inventory_hostname }}.fullchain.pem /etc/caddy/{{ inventory_hostname}}.privkey.pem{% endif %}
+    
+}
+
+# Refer to the Caddy docs for more information:
+# https://caddyserver.com/docs/caddyfile

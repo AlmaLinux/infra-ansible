@@ -21,6 +21,7 @@ common_packages:
   - nload
   # needed by many ansible roles that adjust selinux
   - python3-policycoreutils
+  - rsync
   - telnet
   - vim
   - yum-utils
