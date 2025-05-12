@@ -9,6 +9,8 @@ collections:
     - name: community.zabbix
       version: ">=3.0.4"
     - name: community.general
+    - name: middleware_automation.keycloak
+      version: ">=3.0.1"
 
 roles:
     - name: artis3n.tailscale

@@ -1,0 +1,35 @@
+---
+- name: Bootstrap MariaDB Galera
+  containers.podman.podman_container:
+    name: mariadb
+    image: docker.io/bitnami/mariadb-galera:{{ keycloak_mariadb_version }}
+    state: started
+    network:
+      - podman_network
+    ports: "{{ keycloak_mariadb_galera_ports }}"
+    env:
+      MARIADB_GALERA_CLUSTER_BOOTSTRAP: true
+      MARIADB_ROOT_PASSWORD: "{{ keycloak_mariadb_galera_root_password }}"
+      MARIADB_USER: "{{ keycloak_mariadb_user }}"
+      MARIADB_PASSWORD: "{{ keycloak_mariadb_password }}"
+      MARIADB_DATABASE: "{{ keycloak_mariadb_database }}"
+      MARIADB_GALERA_MARIABACKUP_USER: "{{ keycloak_mariadb_galera_mariabackup_user }}"
+      MARIADB_GALERA_MARIABACKUP_PASSWORD: "{{ keycloak_mariadb_galera_mariabackup_password }}"
+      MARIADB_REPLICATION_USER: "{{ keycloak_mariadb_replication_user }}"
+      MARIADB_REPLICATION_PASSWORD: "{{ keycloak_mariadb_replication_password }}"
+      MARIADB_GALERA_CLUSTER_ADDRESS: gcomm://
+      MARIADB_EXTRA_FLAGS: --wsrep_provider_options=ist.recv_addr={{ tailscale_address }}:4568;ist.recv_bind=0.0.0.0:4568
+        --wsrep_node_incoming_address={{ tailscale_address }} --wsrep_sst_receive_address={{ tailscale_address }}
+    volumes:
+      - /opt/mariadb:/bitnami/mariadb
+  register: keycloak_galera_bootstrapped
+  run_once: true
+
+- name: Wait until mariadb is in sync to continue
+  ansible.builtin.command: mysql -h 127.0.0.1 --protocol=TCP --password={{ keycloak_mariadb_galera_root_password }}
+    -BNe 'SHOW GLOBAL STATUS LIKE "wsrep_local_state_comment"' --auto-vertical-output
+  register: mariadb_ready
+  retries: 60
+  delay: 10
+  until: ("Synced" in mariadb_ready.stdout)
+  changed_when: false
