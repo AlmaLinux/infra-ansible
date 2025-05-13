@@ -1,0 +1,23 @@
+    # Set headers for directory listings and repomd.xml
+    @noCache {
+        path */ */repomd.xml
+    }
+    header @noCache Cache-Control "no-cache, no-store, must-revalidate"
+
+    # Set headers for almalinux-release-latest RPMs
+    @almalinuxRelease {
+        path_regexp almalinuxRelease ^/.*almalinux-release-latest-\d\d?\.[a-z0-9_]+\.rpm$
+    }
+    header @almalinuxRelease Cache-Control "public, max-age=900"
+
+    # Set headers for RPMs and secondary metadata
+    @staticResources {
+        path_regexp staticResources \.(d?rpm|yaml\.gz|xml\.gz|sqlite\.bz2|img|qcow2)$
+    }
+    header @staticResources Cache-Control "public, max-age=31536000, immutable"
+
+    # Set headers for XML files
+    @xmlFiles {
+        path *.xml
+    }
+    header @xmlFiles Cache-Control "public, max-age=1800"

@@ -1,0 +1,88 @@
+---
+staging: false
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}almalinux_repo/repo.almalinux.org"
+
+# we need permissive umask on this server
+os_env_umask: "022"
+
+almalinux_repo_deploy_user_private_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:sync_user_private_key',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+almalinux_repo_deploy_user_pub_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:sync_user_public_key',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+
+firewalld_extra_allow_ports:
+  - "873/tcp"
+
+almalinux_repo_ssh_authorized_keys:
+  # ALBS
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDDGQCPzOndYERcRIkMzx/kC/kLALfJeN6E47RGylRBkck/khuEfjt3cGJe2v7hKyoWSh33uc9PZwb77NO7FDoiqdARmsIbN42Dgq3Xu8CreNxV2ulCW3AiaWL6aEh5Db1zHqfUcBQZhFlyjEgUNIiE7NToIHfWUD8FVA95BUVc4zXwEYlOSTfQYnJjAkYamggeED3W2nGhd97EE59zK7jELgOfxKEWaPZV4Dm1XkBTlrs3GCRsMYpYStvJr9sM+QBsyY/CPwRfFlkj0JIZ/5iZpJyodm8NyNZxc6qulvfiduo+Im7XPZJw98bIn4uEOfnNqpjHlHk7SBi3NANM3XrgCbuoJlJCGX6l1cN9+HusJdsNGvbUUqIqs5KUA3Gpnt7adN8LCWcIdT8SW9F2X9jEdJ2HlaMg5/PPlC8XylAOlfWpQCBXDZ5q/l2v5cFwUtCHf0B0xD31GuctIXrzxa05FTgOP7OvNKmBF9z70vz8SbzwSrXkn7/FY54xq4I8yNc= pulp@albs-pulp.almalinux.org # noqa yaml[line-length]
+
+almalinux_repo_dirs:
+  - repo: almalinux
+    type: nvme
+  - repo: almalinux-epel
+    type: nvme
+  - repo: almalinux-kitten
+    type: nvme
+  - repo: backports
+    type: nvme
+  - repo: build_system
+    type: nvme
+  - repo: development
+    type: nvme
+  - repo: elevate
+    type: nvme
+  - repo: rpi
+    type: nvme
+  - repo: security
+    type: nvme
+  - repo: vault
+    type: hdd
+  - repo: wsl
+    type: nvme
+
+almalinux_repo_caddy_vhosts:
+  - name: raw.repo.almalinux.org
+    path: /repo
+    file_server: browse
+    enable_http: true
+    redirects:
+      - path: /vault/*
+        strip_prefix: /vault
+        url: "{scheme}://vault.almalinux.org{uri}"
+      - path: /almalinux-kitten/*
+        strip_prefix: /almalinux-kitten
+        url: "{scheme}://kitten.repo.almalinux.org{uri}"
+      - path: /security/*
+        strip_prefix: /security
+        url: "{scheme}://security.almalinux.org{uri}"
+  - name: errata.almalinux.org
+    path: /repo/
+  - name: kitten.repo.almalinux.org
+    path: /repo/almalinux-kitten
+    file_server: browse
+    enable_http: true
+  - name: security.almalinux.org
+    path: /repo/security
+    file_server: browse
+    enable_http: true
+  - name: vault.almalinux.org
+    path: /repo/vault
+    file_server: browse
+    enable_http: true
+    redirects:
+      - path: /almalinux-epel/*
+        strip_prefix: /almalinux-epel
+        url: "{scheme}://epel.vault.almalinux.org{uri}"
+  - name: epel.vault.almalinux.org
+    path: /repo/vault/almalinux-epel
+    file_server: browse
+    enable_http: true
+  - name: kitten.vault.almalinux.org
+    path: /repo/vault
+    file_server: browse
+    enable_http: true
+  - name: wsl.almalinux.org
+    path: /repo/wsl
+    file_server: browse
+    enable_http: true

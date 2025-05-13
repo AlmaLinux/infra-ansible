@@ -1,0 +1,3 @@
+---
+almalinux_repo_dir: /repo
+almalinux_repo_deploy_user: deploy-repo-alma

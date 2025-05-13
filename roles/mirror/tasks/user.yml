@@ -1,0 +1,16 @@
+---
+- name: Create deploy user
+  ansible.builtin.user:
+    name: "{{ mirror_tier0_deploy_user }}"
+    comment: User used to receive pushes from repo.almalinux.org
+    # disabled/no password
+    password: '!'
+  when: mirror_tier0_deploy_user is defined
+
+- name: Set authorized_keys for root
+  ansible.posix.authorized_key:
+    user: "{{ mirror_tier0_deploy_user }}"
+    state: present
+    key: "{{ mirror_tier0_deploy_pubkey }}"
+    exclusive: true
+  when: mirror_tier0_deploy_pubkey is defined
