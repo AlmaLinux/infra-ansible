@@ -1,0 +1,9 @@
+---
+- name: Configure AlmaLinux repo
+  hosts: almalinux_repo
+  roles:
+    - common
+    - almalinux_repo
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

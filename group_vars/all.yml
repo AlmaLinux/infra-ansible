@@ -17,7 +17,10 @@ zabbix_listen_port: 10050
 common_packages:
   - lsof
   - nano
+  - ncdu
   - nload
+  # needed by many ansible roles that adjust selinux
+  - python3-policycoreutils
   - telnet
   - vim
   - yum-utils
@@ -45,6 +48,9 @@ ipaclient_no_ntp: true
 # so devsec ssh hardening doesn't break IPA features
 sshd_custom_options:
   - "Include /etc/ssh/sshd_config.d/*"
+
+# OS hardening role tweaks
+os_auth_pw_max_age: 99999
 
 # ssh config/hardening
 ssh_gssapi_support: true
