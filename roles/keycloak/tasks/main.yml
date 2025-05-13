@@ -1,0 +1,67 @@
+---
+- name: Pick bootstrap host
+  ansible.builtin.set_fact:
+    keycloak_mariadb_galera_bootstrap_host: "{{ inventory_hostname }}"
+  when: keycloak_mariadb_galera_bootstrap is defined and keycloak_mariadb_galera_bootstrap
+  run_once: true
+
+- name: Check that all nodes have tailscale IPs so we don't nuke the cluster with a bad IP list
+  ansible.builtin.assert:
+    that: hostvars[item]['tailscale_node_ipv4'] is defined or hostvars[item]['ansible_tailscale0']['ipv4']['address'] is defined
+    fail_msg: "interface tailscale 0 does not exist, or does not have an IP"
+  delegate_to: localhost
+  delegate_facts: true
+  loop: "{{ groups[keycloak_host_group] }}"
+  run_once: true
+
+- name: Set local tailscale address
+  ansible.builtin.set_fact:
+    tailscale_address: "{{ tailscale_node_ipv4 | default(ansible_tailscale0['ipv4']['address']) }}"
+
+- name: Build internal IP list for cluster comms
+  vars:
+    ip: "{{ hostvars[item]['tailscale_node_ipv4'] | default(hostvars[item]['ansible_tailscale0']['ipv4']['address']) }}"
+  ansible.builtin.set_fact:
+    keycloak_cluster_ips: "{{ keycloak_cluster_ips | default([]) + [ip] }}"
+  loop: "{{ groups[keycloak_host_group] }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Set jgroup IP for keycloak
+  ansible.builtin.set_fact:
+    keycloak_quarkus_jgroups_ip: "{{ hostvars[item]['tailscale_node_ipv4'] | default(hostvars[item]['ansible_tailscale0']['ipv4']['address']) }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups[keycloak_host_group] }}"
+
+- name: Remove old openjdk version(s)
+  ansible.builtin.package:
+    name:
+      - java-11-openjdk-headless
+      - java-17-openjdk-headless
+    state: absent
+
+- name: Install mariadb client
+  ansible.builtin.package:
+    name: mariadb
+    state: present
+
+- name: Configure Caddy reverse proxy
+  ansible.builtin.include_tasks: caddy.yml
+
+- name: Configure MariaDB Galera cluster
+  ansible.builtin.include_tasks: galera.yml
+
+# # there is no difference between the following two tasks other than the run_once when bootstrapping
+# # this is because the start keycloak task operates too fast when bootstrapping and leads to deadlocks on a fresh database
+# # this is of no concern in normal production
+# - name: Configure Keycloak cluster (bootstrap)
+#   ansible.builtin.include_tasks: keycloak.yml
+#   run_once: true
+#   when: keycloak_mariadb_galera_bootstrap is defined and keycloak_mariadb_galera_bootstrap
+#     and inventory_hostname == keycloak_mariadb_galera_bootstrap_host
+
+- name: Configure Keycloak cluster (normal, already bootstrapped)
+  ansible.builtin.include_tasks: keycloak.yml
+  # when: ((keycloak_mariadb_galera_bootstrap_host is defined and keycloak_mariadb_galera_bootstrap_host != inventory_hostname)
+  #   or keycloak_mariadb_galera_bootstrap_host is not defined)

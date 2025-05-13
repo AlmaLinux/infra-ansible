@@ -1,0 +1,10 @@
+---
+- name: Create keycloak config dir
+  ansible.builtin.file:
+    path: /etc/keycloak
+    state: directory
+    mode: "0700"
+
+- name: Include middleware automation keycloak role
+  ansible.builtin.include_role:
+    name: middleware_automation.keycloak.keycloak_quarkus
