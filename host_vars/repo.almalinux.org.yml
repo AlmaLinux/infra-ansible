@@ -66,6 +66,14 @@ almalinux_repo_caddy_vhosts:
     path: /repo/security
     file_server: browse
     enable_http: true
+  - name: raw.vault.almalinux.org
+    path: /repo/vault
+    file_server: browse
+    enable_http: true
+    redirects:
+      - path: /almalinux-epel/*
+        strip_prefix: /almalinux-epel
+        url: "{scheme}://epel.vault.almalinux.org{uri}"
   - name: vault.almalinux.org
     path: /repo/vault
     file_server: browse

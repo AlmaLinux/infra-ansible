@@ -1,0 +1,22 @@
+---
+- name: Include Galera common tasks
+  ansible.builtin.include_tasks: galera_common.yml
+
+- name: Galera bootstrap
+  ansible.builtin.include_tasks: galera_bootstrap.yml
+  when: keycloak_mariadb_galera_bootstrap is defined and keycloak_mariadb_galera_bootstrap
+    and inventory_hostname == keycloak_mariadb_galera_bootstrap_host
+
+- name: Galera node setup
+  ansible.builtin.include_tasks: galera_normal.yml
+  when: inventory_hostname == item and
+    ((keycloak_mariadb_galera_bootstrap_host is defined and keycloak_mariadb_galera_bootstrap_host != inventory_hostname)
+    or keycloak_mariadb_galera_bootstrap_host is not defined)
+  # this is a trick to make the includes tasks run serially, one host by one host
+  with_items: "{{ ansible_play_hosts }}"
+
+# now that the cluster is running we need to take the first node out of bootstrap mode and make it a normal cluster member
+- name: Galera bootstrap node reconfig (to normal start arguments)
+  ansible.builtin.include_tasks: galera_normal.yml
+  when: keycloak_galera_bootstrapped is defined and keycloak_galera_bootstrapped.changed
+    and inventory_hostname == keycloak_mariadb_galera_bootstrap_host
