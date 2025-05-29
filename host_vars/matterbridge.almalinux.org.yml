@@ -154,6 +154,16 @@ matterbridge_channels:
     mattermost.almalinux: siglivemedia
     matrix.almalinux: "#sig-livemedia:almalinux.im"
     discord.almalinux: ID:1275886150258786364
+  gateway-btrfs:
+    irc.libera: "#almalinux-btrfs"
+    mattermost.almalinux: "btrfs"
+    discord.almalinux: ID:1377665668543152342
+    matrix.almalinux: "#btrfs:almalinux.im"
+  gateway-sig-atomic:
+    irc.libera: "#almalinux-sig-atomic"
+    mattermost.almalinux: "sigatomic"
+    matrix.almalinux: "#sig-atomic:almalinux.im"
+    discord.almalinux: ID:1377666099713147030
 
   redict:
     irc.libera: "#redict"
