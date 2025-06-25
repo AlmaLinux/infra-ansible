@@ -12,3 +12,17 @@
   ansible.builtin.include_role:
     name: freeipa.ansible_freeipa.ipaclient
   when: not ipa_client_installed.stat.exists or ipaclient_reinstall
+
+- name: Symlink IPA CA to trusted anchors
+  ansible.builtin.file:
+    src: /etc/ipa/ca.crt
+    dest: /etc/pki/ca-trust/source/anchors/ipa-ca.crt
+    owner: root
+    group: root
+    state: link
+  register: symlink_ipa_ca
+
+# can't use handler as we need this in later tasks
+- name: Update CA Trust # noqa no-changed-when no-handler
+  ansible.builtin.shell: update-ca-trust # noqa command-instead-of-shell
+  when: symlink_ipa_ca.changed
