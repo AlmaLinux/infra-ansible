@@ -29,6 +29,16 @@
   tags:
     - firewalld
 
+- name: Allow dhcpv6-client traffic
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+    service: dhcpv6-client
+  tags:
+    - firewalld
+
 - name: Allow SSH 22/tcp traffic
   ansible.posix.firewalld:
     zone: public
