@@ -1,0 +1,19 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for noggin
+- name: include os specific vars
+  ansible.builtin.include_tasks:
+    file: include_vars.yml
+
+- name: setup environment for RedHat based os
+  ansible.builtin.import_tasks:
+    file: setup-RedHat.yml
+  when: ansible_os_family == 'RedHat'
+
+- name: install webserver
+  ansible.builtin.include_tasks:
+    file: install_webserver.yml
+
+- name: install noggin
+  ansible.builtin.include_tasks:
+    file: install_noggin.yml
