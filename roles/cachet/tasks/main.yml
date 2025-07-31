@@ -1,0 +1,132 @@
+---
+- name: Install dependencies
+  ansible.builtin.package:
+    name:
+      - composer
+      - git-core
+      - valkey
+    state: present
+
+- name: Start and enable valkey
+  ansible.builtin.systemd:
+    name: valkey
+    enabled: true
+    state: started
+
+- name: Install pecl redis module
+  community.general.pear:
+    name: pecl/redis
+    state: present
+  notify: Restart php-fpm
+
+- name: Enable PHP redis module
+  ansible.builtin.copy:
+    dest: /etc/php.d/99-redis.ini
+    content: |
+      extension=redis.so
+    mode: "0644"
+  notify: Restart php-fpm
+
+- name: Create cachet directory
+  ansible.builtin.file:
+    path: /usr/share/caddy/cachet/
+    state: directory
+    owner: cachet
+    group: cachet
+    mode: "0755"
+
+- name: Clone cachet 3.x-dev
+  ansible.builtin.git:
+    repo: 'https://github.com/cachethq/cachet.git'
+    dest: /usr/share/caddy/cachet/
+    version: 3.x
+    update: "{{ cachet_update }}"
+  become: true
+  become_user: cachet
+  register: cachet_cloned
+
+- name: Download and installs all libs and dependencies
+  community.general.composer:
+    command: install
+    arguments: --no-dev -o
+    working_dir: /usr/share/caddy/cachet/
+  become: true
+  become_user: cachet
+
+- name: Install cachet core
+  community.general.composer:
+    command: update
+    arguments: cachethq-core
+    working_dir: /usr/share/caddy/cachet/
+  become: true
+  become_user: cachet
+
+- name: Write config
+  ansible.builtin.template:
+    src: .env.j2
+    dest: /usr/share/caddy/cachet/.env
+    mode: "0600"
+  become: true
+  become_user: cachet
+
+- name: Publish assets # noqa no-changed-when no-handler
+  ansible.builtin.command: php artisan vendor:publish --tag=cachet
+  args:
+    chdir: /usr/share/caddy/cachet/
+  become: true
+  become_user: cachet
+  when: cachet_cloned.changed
+
+- name: Link upload storage dir # noqa no-changed-when no-handler
+  ansible.builtin.command: php artisan storage:link
+  args:
+    chdir: /usr/share/caddy/cachet/
+  become: true
+  become_user: cachet
+  when: cachet_cloned.changed
+
+- name: Run database migrations # noqa no-changed-when no-handler
+  ansible.builtin.command: php artisan migrate -n --force
+  args:
+    chdir: /usr/share/caddy/cachet/
+  become: true
+  become_user: cachet
+  when: cachet_cloned.changed
+
+- name: Ensure cachet directories are 0755
+  ansible.builtin.command: find /usr/share/caddy/cachet/ -type d -exec chmod -c 0755 {} \;
+  register: cachet_chmod_result
+  changed_when: "cachet_chmod_result.stdout != \"\""
+
+- name: Ensure cachet files are 0644
+  ansible.builtin.command: find /usr/share/caddy/cachet/ -type f -not -path "*/.env" -not -path "*/cache/*" -exec chmod -c 0644 {} \;
+  register: cachet_chmod_result
+  changed_when: "cachet_chmod_result.stdout != \"\""
+
+- name: Create infra user
+  vars:
+    password: "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/{% if staging %}stg/{% endif %}cachet:default_user_password',
+      token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+  ansible.builtin.shell: |
+    php artisan cachet:make:user \
+    --admin=1 \
+    --name "AlmaLinux Infra" \
+    --password "{{ password }}" \
+    infra-team@almalinux.org
+  args:
+    chdir: /usr/share/caddy/cachet/
+  become: true
+  become_user: cachet
+  register: cachet_create_infra_user
+  changed_when: cachet_create_infra_user.rc == 0
+  failed_when: false
+
+- name: Setup cron
+  ansible.builtin.cron:
+    name: "cachet scheduler"
+    user: cachet
+    cron_file: cachet
+    job: php /usr/share/caddy/cachet/artisan schedule:run >> /dev/null 2>&1
+
+- name: Caddy
+  ansible.builtin.include_tasks: caddy.yml

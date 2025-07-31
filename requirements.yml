@@ -18,3 +18,4 @@ roles:
       src: git+https://github.com/TerryHowe/ansible-modules-hashivault.git
     - name: geerlingguy.postgresql
     - name: geerlingguy.mysql
+    - name: geerlingguy.php

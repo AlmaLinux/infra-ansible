@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+# The Caddyfile is an easy way to configure your Caddy web server.
+#
+# Unless the file starts with a global options block, the first
+# uncommented line is always the address of your site.
+#
+# To use your own domain name (with automatic HTTPS), first make
+# sure your domain's A/AAAA DNS records are properly pointed to
+# this machine's public IP, then replace ":80" below with your
+# domain name.
+
+{{ inventory_hostname }} {
+    root * /usr/share/caddy/cachet/public
+
+    # Handle PHP requests using php_fastcgi
+    #php_fastcgi unix//run/php-fpm/cachet.sock
+    php_fastcgi localhost:9000
+
+    # Serve static files
+    file_server
+    try_files {path} {path}/index.php index.php
+
+    encode * {
+        gzip 6
+        zstd
+    }
+
+    @static {
+        file
+        path *.ico *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2 *.ogg
+    }
+    header @static Cache-Control max-age=2592000
+}
+
+# Refer to the Caddy docs for more information:
+# https://caddyserver.com/docs/caddyfile

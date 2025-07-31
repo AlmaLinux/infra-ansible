@@ -20,7 +20,7 @@ common_packages:
   - ncdu
   - nload
   # needed by many ansible roles that adjust selinux
-  - policycoreutils
+  - policycoreutils-python-utils
   - rsync
   - telnet
   - vim

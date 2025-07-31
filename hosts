@@ -87,3 +87,13 @@ keycloak03.stg.id.almalinux.org ansible_host=54.237.151.67
 
 [keycloak_stg:children]
 keycloak_galera_nodes_stg
+
+[cachet_stg]
+stg.status.almalinux.org
+
+[cachet_prod]
+status.almalinux.org ansible_host=18.189.63.80
+
+[cachet:children]
+cachet_stg
+cachet_prod

@@ -1,0 +1,28 @@
+---
+- name: Configure cachet (status.almalinux.org)
+  hosts:
+    - cachet
+  roles:
+    - common
+    - role: geerlingguy.mysql
+      when: cachet_database == 'mysql' or cachet_database == 'mariadb'
+    - role: geerlingguy.php
+    - cachet
+    # no EL10 support yet
+    # - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
+  pre_tasks:
+    - name: Create cachet system user
+      ansible.builtin.user:
+        name: cachet
+        comment: Cachet user
+        create_home: false
+        shell: /usr/sbin/nologin
+    - name: Create caddy user
+      ansible.builtin.user:
+        name: caddy
+        comment: Caddy web server
+        shell: /usr/sbin/nologin
+        home: /var/lib/caddy
+        create_home: false

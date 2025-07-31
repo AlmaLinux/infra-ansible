@@ -1,0 +1,35 @@
+---
+firewalld_extra_allow_ports:
+  - "22/tcp"
+  - "80/tcp"
+  - "443/tcp"
+
+cachet_database: sqlite
+
+php_packages:
+  - php
+  - php-devel
+  - php-fpm
+  - php-pear
+  - php-mysqlnd
+php_webserver_daemon: "caddy"
+php_enable_php_fpm: true
+php_fpm_state: started
+php_fpm_enabled_on_boot: true
+php_fpm_handler_state: restarted
+php_fpm_pools:
+  - pool_name: www
+    pool_template: www.conf.j2
+    pool_listen: "127.0.0.1:9000"
+    pool_listen_allowed_clients: "127.0.0.1"
+    pool_pm: dynamic
+    pool_pm_max_children: 50
+    pool_pm_start_servers: 5
+    pool_pm_min_spare_servers: 5
+    pool_pm_max_spare_servers: 10
+    pool_pm_max_requests: 500
+    pool_pm_status_path: /status
+php_use_managed_ini: true
+php_fpm_pool_user: cachet
+php_fpm_pool_group: caddy
+php_enable_apc: false

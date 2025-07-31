@@ -1,0 +1,10 @@
+---
+- name: Restart php-fpm
+  ansible.builtin.systemd:
+    name: php-fpm
+    state: restarted
+
+- name: Restart caddy
+  ansible.builtin.systemd:
+    name: caddy
+    state: restarted
