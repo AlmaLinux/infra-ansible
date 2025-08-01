@@ -28,7 +28,7 @@
   ansible.builtin.package:
     name: vault{{ '-' + hashivault_vault_version | default('') }}
     state: present
-  register: install_vault
+  register: hashivault_install_vault
 
 - name: Ensures systemd override dir exists
   ansible.builtin.file:
@@ -51,7 +51,7 @@
     state: present
     name:
       - vault-{{ hashivault_vault_version }}
-  when: hashivault_vault_version is defined and hashivault_vault_version != '' and install_vault.changed
+  when: hashivault_vault_version is defined and hashivault_vault_version != '' and hashivault_install_vault.changed
 
 - name: Run certbot
   ansible.builtin.include_tasks: certbot.yml
@@ -61,7 +61,7 @@
     src: vault.hcl.j2
     dest: /etc/vault.d/vault.hcl
     mode: "0644"
-  register: config_written
+  register: hashivault_config_written
 
 - name: Enable vault
   ansible.builtin.systemd_service:

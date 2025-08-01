@@ -21,12 +21,12 @@
     target: '/var/log/caddy(/.*)?'
     setype: httpd_sys_rw_content_t
     state: present
-  register: set_selinux_context
+  register: matrix_synapse_set_selinux_context
 
 # need to apply new contexts "now" to prevent potential issues in later tasks
 - name: Apply new SELinux file context to filesystem # noqa no-handler no-changed-when
   ansible.builtin.command: restorecon -irv /var/log/caddy
-  when: set_selinux_context.changed
+  when: matrix_synapse_set_selinux_context.changed
 
 - name: Distribute /etc/caddy/Caddyfile
   ansible.builtin.template:

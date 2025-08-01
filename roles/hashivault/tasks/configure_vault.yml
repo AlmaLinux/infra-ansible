@@ -21,19 +21,19 @@
 - name: Read IPA CA file
   ansible.builtin.slurp:
     src: "{{ auth_ldap_certificate_file }}"
-  register: ipa_ca
+  register: hashivault_ipa_ca
   tags: configure_vault
 
 - name: Check vault status
   hashivault_status:
-  register: vault_status
+  register: hashivault_vault_status
   tags: configure_vault
   delegate_to: localhost
 
 - name: Check if vault initialized and unsealed
   ansible.builtin.fail:
     msg: Please initialize and unseal the vault and re-run the playbook.
-  when: vault_status.status.sealed or not vault_status.status.initialized
+  when: hashivault_vault_status.status.sealed or not hashivault_vault_status.status.initialized
   tags: configure_vault
   any_errors_fatal: true
 
@@ -53,7 +53,7 @@
     userfilter: "{{ auth_ldap_userfilter }}"
     group_attr: "{{ auth_ldap_groupattr }}"
     user_attr: "{{ auth_ldap_userattr }}"
-    certificate: "{{ ipa_ca.content | b64decode }}"
+    certificate: "{{ hashivault_ipa_ca.content | b64decode }}"
   tags: configure_vault
   delegate_to: localhost
 

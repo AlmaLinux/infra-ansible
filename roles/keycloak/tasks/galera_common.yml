@@ -15,16 +15,16 @@
     owner: 1001
     group: 1001
     mode: '0700'
-  register: create_opt_mariadb
+  register: keycloak_create_opt_mariadb
 
 - name: Set SELinux context for container's directory
   community.general.sefcontext:
     target: '/opt/mariadb(/.*)?'
     setype: container_file_t
     state: present
-  register: set_selinux_context
+  register: keycloak_set_selinux_context
 
 # need to apply new contexts "now" to prevent potential issues in later tasks
 - name: Apply new SELinux file context to filesystem # noqa no-handler no-changed-when
   ansible.builtin.command: restorecon -irv /opt/mariadb
-  when: set_selinux_context.changed or create_opt_mariadb.changed
+  when: keycloak_set_selinux_context.changed or keycloak_create_opt_mariadb.changed
