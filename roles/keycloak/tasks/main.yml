@@ -16,7 +16,7 @@
 
 - name: Set local tailscale address
   ansible.builtin.set_fact:
-    tailscale_address: "{{ tailscale_node_ipv4 | default(ansible_tailscale0['ipv4']['address']) }}"
+    keycloak_tailscale_address: "{{ tailscale_node_ipv4 | default(ansible_tailscale0['ipv4']['address']) }}"
 
 - name: Build internal IP list for cluster comms
   vars:

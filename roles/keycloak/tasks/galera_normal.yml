@@ -12,18 +12,18 @@
       MARIADB_GALERA_MARIABACKUP_PASSWORD: "{{ keycloak_mariadb_galera_mariabackup_password }}"
       MARIADB_REPLICATION_USER: "{{ keycloak_mariadb_replication_user }}"
       MARIADB_REPLICATION_PASSWORD: "{{ keycloak_mariadb_replication_password }}"
-      MARIADB_EXTRA_FLAGS: --wsrep_provider_options=ist.recv_addr={{ tailscale_address }}:4568;ist.recv_bind=0.0.0.0:4568
-        --wsrep_node_incoming_address={{ tailscale_address }} --wsrep_sst_receive_address={{ tailscale_address }}
+      MARIADB_EXTRA_FLAGS: --wsrep_provider_options=ist.recv_addr={{ keycloak_tailscale_address }}:4568;ist.recv_bind=0.0.0.0:4568
+        --wsrep_node_incoming_address={{ keycloak_tailscale_address }} --wsrep_sst_receive_address={{ keycloak_tailscale_address }}
     volumes:
       - /opt/mariadb:/bitnami/mariadb
-  register: mariadb_setup
+  register: keycloak_mariadb_setup
 
 - name: Wait until mariadb is in sync to continue # noqa no-handler
   ansible.builtin.command: mysql -h 127.0.0.1 --protocol=TCP --password={{ keycloak_mariadb_galera_root_password }}
     -BNe 'SHOW GLOBAL STATUS LIKE "wsrep_local_state_comment"' --auto-vertical-output
-  register: mariadb_ready
+  register: keycloak_mariadb_ready
   retries: 60
   delay: 10
-  until: ("Synced" in mariadb_ready.stdout)
+  until: ("Synced" in keycloak_mariadb_ready.stdout)
   changed_when: false
-  when: mariadb_setup.changed
+  when: keycloak_mariadb_setup.changed

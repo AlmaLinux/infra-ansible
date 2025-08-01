@@ -4,7 +4,7 @@
     target: '{{ almalinux_repo_dir }}(/.*)?'
     setype: public_content_t
     state: present
-  register: set_selinux_context
+  register: almalinux_repo_set_selinux_context
   tags:
     - caddy
     - rsyncd
@@ -15,7 +15,7 @@
     target: '{{ almalinux_repo_dir }}{{ item }}(/.*)?'
     setype: public_content_t
     state: present
-  register: set_selinux_context
+  register: almalinux_repo_set_selinux_context
   tags:
     - caddy
     - rsyncd
@@ -26,7 +26,7 @@
 - name: Apply new SELinux file context to filesystem for content # noqa no-handler no-changed-when
   ansible.builtin.command: restorecon -irv {{ almalinux_repo_dir }} {{ almalinux_repo_dirs | map(attribute='type') | unique |
     map('regex_replace', '^', almalinux_repo_dir) | join(' ') }}
-  when: set_selinux_context.changed
+  when: almalinux_repo_set_selinux_context.changed
   tags:
     - caddy
     - rsyncd

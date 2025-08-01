@@ -13,7 +13,7 @@
   ansible.builtin.git:
     repo: git@github.com:AlmaLinux/almalinux-keycloak-theme.git
     dest: tmp/almalinux-keycloak-theme
-    single_branch: yes
+    single_branch: true
     version: main
     force: true
   delegate_to: localhost

@@ -20,9 +20,9 @@
     owner: root
     group: root
     state: link
-  register: symlink_ipa_ca
+  register: ipa_client_symlink_ipa_ca
 
 # can't use handler as we need this in later tasks
 - name: Update CA Trust # noqa no-changed-when no-handler
   ansible.builtin.shell: update-ca-trust # noqa command-instead-of-shell
-  when: symlink_ipa_ca.changed
+  when: ipa_client_symlink_ipa_ca.changed
