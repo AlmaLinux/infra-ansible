@@ -25,7 +25,6 @@
     service: "{{ item }}"
   loop:
     - cockpit
-    - dhcpv6-client
   tags:
     - firewalld
 
