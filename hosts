@@ -27,6 +27,7 @@
 [external_managed_mirrors]
 almalinux-mirror.yucca.net
 atl.mirrors.ezscale.cloud
+mirror.shedmtl.com
 
 [el7_mirrors]
 el7.repo.almalinux.org
