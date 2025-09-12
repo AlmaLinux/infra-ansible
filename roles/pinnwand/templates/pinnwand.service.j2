@@ -1,0 +1,11 @@
+[Unit]
+Description=pinnwand pastebin
+
+[Service]
+User={{ pinnwand_os_user }}
+{# ExecStart={{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/virtual-environment/bin/pinnwand --configuration-path {{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/{{ pinnwand_cfg_file }} http #}
+ExecStart={{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/virtual-environment/bin/python -m pinnwand --configuration-path {{ pinnwand_home_dir }}/{{ pinnwand_os_user }}/{{ pinnwand_cfg_file }} http
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
