@@ -1,0 +1,22 @@
+---
+# Web server configurator
+- name: retrieve the content of a specific file
+  ansible.builtin.slurp:
+    src: /etc/php-fpm.d/www.conf
+  register: php_fpm_www
+
+- name: php-fpm unix socket
+  ansible.builtin.set_fact:
+    matomo_php_socket_file: "{{ php_fpm_www['content']|b64decode|regex_findall('^listen = (.+)',multiline=True)|first }}"
+
+- name: Inject the Matomo site's Nginx configuration
+  ansible.builtin.template:
+    src: "matomo.conf.j2"
+    dest: "{{ matomo_web_config_dir['conf_dir'] }}/matomo.conf"
+    owner: "root"
+    group: "root"
+    mode: "preserve"
+    force: true
+    backup: yes
+  notify: "(Handler: All OSs) Reload NGINX"
+  become: true
