@@ -58,14 +58,20 @@ almalinux_repo_caddy_vhosts:
         url: "{scheme}://security.almalinux.org{uri}"
   - name: errata.almalinux.org
     path: /repo/
+    expires: expires-errata.j2
   - name: kitten.repo.almalinux.org
     path: /repo/almalinux-kitten
+    file_server: browse
+    enable_http: true
+  - name: epel.repo.almalinux.org
+    path: /repo/almalinux-epel
     file_server: browse
     enable_http: true
   - name: security.almalinux.org
     path: /repo/security
     file_server: browse
     enable_http: true
+    expires: expires-errata.j2
   - name: raw.vault.almalinux.org
     path: /repo/vault
     file_server: browse

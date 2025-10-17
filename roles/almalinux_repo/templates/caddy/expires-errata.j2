@@ -1,0 +1,11 @@
+    # Set headers for directory listings and repomd.xml
+    @noCache {
+        path */ */repomd.xml
+    }
+    header @noCache Cache-Control "no-cache, no-store, must-revalidate"
+
+    # Set headers for XML files
+    @staticResources {
+        path *.xml *.xml.bz2 *.json
+    }
+    header @staticResources Cache-Control "public, max-age=3600"
