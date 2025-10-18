@@ -57,6 +57,10 @@ os_auth_pw_max_age: 99999
 ssh_gssapi_support: true
 ssh_permit_root_login: 'without-password'
 ssh_kerberos_support: true
+# we have to specify this to keep it listening on v6
+ssh_listen_to:
+  - 0.0.0.0
+  - "::"
 
 # zabbix agent
 zabbix_agent_version: 6.4
