@@ -129,3 +129,7 @@ gitea_config:
       OLDER_THAN: 24h
     webhook:
       DELIVER_TIMEOUT: 300
+    cache:
+      ADAPTER: redis
+      HOST: redis://127.0.0.1:6379/0?pool_size=100&idle_timeout=60s
+      ITEM_TTL: 24h
