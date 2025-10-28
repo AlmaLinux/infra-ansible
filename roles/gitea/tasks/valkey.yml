@@ -1,0 +1,21 @@
+---
+- name: Install Valkey
+  ansible.builtin.dnf:
+    name: valkey
+    state: present
+  tags:
+    - valkey
+
+- name: Enable Valkey
+  ansible.builtin.systemd:
+    name: valkey.service
+    enabled: true
+  tags:
+    - valkey
+
+- name: Start Valkey
+  ansible.builtin.systemd:
+    name: valkey.service
+    state: started
+  tags:
+    - valkey

@@ -5,6 +5,9 @@
       - git
     state: present
 
+- name: Configure valkey cache
+  ansible.builtin.include_tasks: valkey.yml
+
 - name: Download gitea binary
   ansible.builtin.get_url:
     url: https://dl.gitea.com/gitea/{{ gitea_version }}/gitea-{{ gitea_version }}-linux-amd64
