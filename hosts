@@ -33,7 +33,7 @@ mirror.shedmtl.com
 el7.repo.almalinux.org
 
 [mirrors_tier0]
-#atl.rsync.repo.almalinux.org
+atl.rsync.repo.almalinux.org
 #sea.rsync.repo.almalinux.org
 ams.rsync.repo.almalinux.org
 
