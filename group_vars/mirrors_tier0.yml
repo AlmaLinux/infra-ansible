@@ -16,6 +16,9 @@ mirror_rsync_modules:
   almalinux-kitten:
     path: "{{ mirror_path }}/almalinux-kitten"
     comment: AlmaLinux Kitten repository
+  almalinux-epel:
+    path: "{{ mirror_path }}/almalinux-epel"
+    comment: AlmaLinux EPEL repository
 mirror_tier0_deploy_user: deploy-repo-alma
 mirror_tier0_deploy_pubkey: "{{ lookup('community.hashi_vault.hashi_vault',
   'kv/data/infra/{% if staging %}stg/{% endif %}almalinux_repo/repo.almalinux.org:sync_user_public_key',
