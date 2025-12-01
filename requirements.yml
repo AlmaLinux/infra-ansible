@@ -4,10 +4,8 @@ collections:
     - name: devsec.hardening
     - name: freeipa.ansible_freeipa
     - name: community.hashi_vault
-    # 3.0.4 fixes a bug related to zabbix gpg keys
-    # https://github.com/ansible-collections/community.zabbix/pull/1272
     - name: community.zabbix
-      version: ">=3.0.4"
+      version: ">=4.1.1"
     - name: community.general
     - name: middleware_automation.keycloak
       version: ">=3.0.1"
