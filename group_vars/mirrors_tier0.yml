@@ -21,5 +21,5 @@ mirror_rsync_modules:
     comment: AlmaLinux EPEL repository
 mirror_tier0_deploy_user: deploy-repo-alma
 mirror_tier0_deploy_pubkey: "{{ lookup('community.hashi_vault.hashi_vault',
-  'kv/data/infra/{% if staging %}stg/{% endif %}almalinux_repo/repo.almalinux.org:sync_user_public_key',
+  'kv/data/infra/{% if staging %}stg/{% endif %}mirror_tier0:mirror_tier0_deploy_pubkey ',
   token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
