@@ -1,0 +1,9 @@
+---
+- name: Configure astra
+  hosts: astra
+  roles:
+    - common
+    - ipa_client
+    # - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
