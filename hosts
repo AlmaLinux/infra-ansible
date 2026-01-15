@@ -98,3 +98,6 @@ status.almalinux.org ansible_host=18.189.63.80
 [cachet:children]
 cachet_stg
 cachet_prod
+
+[astra]
+astra.almalinux.org
