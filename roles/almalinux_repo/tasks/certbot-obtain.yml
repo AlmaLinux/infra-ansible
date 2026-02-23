@@ -1,0 +1,60 @@
+---
+- name: Check for existing certbot-managed certificates
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ item.name }}.conf
+  loop: "{{ almalinux_repo_vhosts }}"
+  register: _certbot_renewal_check
+  tags: certbot
+
+- name: Remove placeholder certificates before certbot provisioning
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ item.item.name }}
+    state: absent
+  loop: "{{ _certbot_renewal_check.results }}"
+  when: not item.stat.exists
+  tags: certbot
+
+- name: Obtain SSL certificates with certbot # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    {% set _auth = item.item.certbot_auth | default(almalinux_repo_certbot_default_auth | default('http')) %}
+    {% if _auth == 'dns_route53' %}
+    --dns-route53
+    {% elif _auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --dns-cloudflare-propagation-seconds {{ almalinux_repo_cloudflare_propagation_seconds }}
+    {% else %}
+    --webroot -w /var/lib/letsencrypt
+    {% endif %}
+    --cert-name {{ item.item.name }}
+    -d {{ item.item.name }}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  loop: "{{ _certbot_renewal_check.results }}"
+  when: not item.stat.exists
+  failed_when:
+    - _certbot_result.rc != 0
+    - (item.item.certbot_auth | default(almalinux_repo_certbot_default_auth | default('http'))) != 'http'
+  register: _certbot_result
+  throttle: 1
+  tags: certbot
+
+- name: Check for SSL certificates after obtainment
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ item.name }}/fullchain.pem
+  loop: "{{ almalinux_repo_vhosts }}"
+  register: _le_cert_check
+  tags: certbot
+
+- name: Update vhost configs with real certificate paths
+  ansible.builtin.template:
+    src: nginx/vhost.conf.j2
+    dest: /etc/nginx/conf.d/{{ vhost.name }}.conf
+    mode: "0644"
+    owner: root
+    group: root
+  loop: "{{ _le_cert_check.results }}"
+  vars:
+    vhost: "{{ item.item }}"
+    _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ item.item.name if item.stat.exists else '/etc/pki/nginx/' ~ item.item.name }}"
+  notify: Reload nginx
+  tags: certbot
