@@ -59,7 +59,7 @@ ssh_permit_root_login: 'without-password'
 ssh_kerberos_support: true
 
 # zabbix agent
-zabbix_agent_version: 6.4
+zabbix_agent_version: 7.0
 zabbix_agent2: true
 zabbix_agent_visible_hostname: "{{ inventory_hostname }}"
 zabbix_agent_server:
