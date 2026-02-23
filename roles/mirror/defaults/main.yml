@@ -1,6 +1,6 @@
 ---
 mirror_tier0: false
-mirror_custom_ssl: false
+mirror_cloudflare_propagation_seconds: 30
 mirror_path: /mirror
 # use a /almalinux subdir within mirror_path if true
 mirror_path_use_subdir: true
@@ -34,6 +34,8 @@ mirror_create_fs: true
 
 mirror_enable_http: true
 
+mirror_enable_kitten: false
+
 mirror_repos:
   - mirror_name: almalinux
     bootstrap_command:
@@ -49,6 +51,8 @@ mirror_repos:
     rsync_minute: "0"
     rsync_hour: "*/1"
     rsync_file: almalinux_rsync
+
+mirror_kitten_repos:
   - mirror_name: almalinux-kitten
     bootstrap_command:
       "/usr/bin/rsync -avSH --exclude='.~tmp~' rsync://rsync.repo.almalinux.org/almalinux-kitten/RPM-GPG-KEY-AlmaLinux-10
@@ -71,6 +75,8 @@ mirror_rsync_modules:
   almalinux:
     path: "{{ mirror_path }}/almalinux"
     comment: AlmaLinux repository
+
+mirror_kitten_rsync_modules:
   almalinux-kitten:
     path: "{{ mirror_path }}/almalinux-kitten"
     comment: AlmaLinux Kitten repository

@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+# Mirror: {{ inventory_hostname }}
+
+{% if mirror_enable_http | default(true) %}
+server {
+    listen 80;
+    server_name {{ inventory_hostname }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    root {{ mirror_path }};
+    autoindex on;
+
+    access_log /var/log/nginx/{{ inventory_hostname }}.access.log;
+}
+{% else %}
+server {
+    listen 80;
+    server_name {{ inventory_hostname }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+{% endif %}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ inventory_hostname }};
+
+    ssl_certificate {{ mirror_ssl_cert_path }}/fullchain.pem;
+    ssl_certificate_key {{ mirror_ssl_cert_path }}/privkey.pem;
+
+    root {{ mirror_path }};
+    autoindex on;
+
+    access_log /var/log/nginx/{{ inventory_hostname }}.access.log;
+}

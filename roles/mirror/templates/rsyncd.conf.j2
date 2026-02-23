@@ -14,7 +14,8 @@ motd file = /etc/rsyncmotd
 
 log file=/var/log/rsyncd.log
 
-{% for module,values in mirror_rsync_modules.items() %}
+{% set all_modules = mirror_rsync_modules | combine(mirror_kitten_rsync_modules if mirror_enable_kitten else {}) %}
+{% for module,values in all_modules.items() %}
 [{{ module }}]
 {% for key,value in values.items() %}
 {{ key }} = {{ value }}
