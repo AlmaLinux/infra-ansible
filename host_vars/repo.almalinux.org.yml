@@ -47,6 +47,8 @@ almalinux_repo_route53_access_key: "{{ lookup('community.hashi_vault.hashi_vault
         token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
 almalinux_repo_route53_secret_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:route53_secret_key',
         token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+almalinux_repo_cloudflare_api_token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:cloudflare_api_token',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
 
 # almalinux_repo_certbot_default_auth: dns_route53
 
