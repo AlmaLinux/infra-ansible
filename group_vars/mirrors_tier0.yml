@@ -2,10 +2,11 @@
 mirror_tier0: true
 mirror_path: /repo
 mirror_path_use_subdir: false
-mirror_custom_ssl: true
+mirror_certbot_auth: dns_route53
 mirror_create_fs: false
 mirror_bootstrap_mirror: false
 mirror_configure_crons: false
+mirror_enable_kitten: true
 mirror_rsync_modules:
   almalinux:
     path: "{{ mirror_path }}/almalinux"
@@ -13,9 +14,6 @@ mirror_rsync_modules:
   almalinux-elevate:
     path: "{{ mirror_path }}/elevate"
     comment: AlmaLinux ELevate repository
-  almalinux-kitten:
-    path: "{{ mirror_path }}/almalinux-kitten"
-    comment: AlmaLinux Kitten repository
 mirror_tier0_deploy_user: deploy-repo-alma
 mirror_tier0_deploy_pubkey: "{{ lookup('community.hashi_vault.hashi_vault',
   'kv/data/infra/{% if staging %}stg/{% endif %}almalinux_repo/repo.almalinux.org:sync_user_public_key',

@@ -14,50 +14,6 @@
     name: rsync
     state: latest
 
-- name: Install Caddy
-  ansible.builtin.dnf:
-    name: caddy
-    state: present
-  tags:
-    - caddy
-
-- name: Create Caddy log dir
-  ansible.builtin.file:
-    path: /var/log/caddy/
-    owner: caddy
-    group: caddy
-    mode: "0700"
-    state: directory
-  tags:
-    - caddy
-
-- name: Set SELinux context for log directory
-  community.general.sefcontext:
-    target: '/var/log/caddy(/.*)?'
-    setype: httpd_sys_rw_content_t
-    state: present
-  register: mirror_set_selinux_context
-  tags:
-    - caddy
-
-# need to apply new contexts "now" to prevent potential issues in later tasks
-- name: Apply new SELinux file context to filesystem # noqa no-handler no-changed-when
-  ansible.builtin.command: restorecon -irv /var/log/caddy
-  when: mirror_set_selinux_context.changed
-  tags:
-    - caddy
-
-- name: Distribute /etc/caddy/Caddyfile
-  ansible.builtin.template:
-    src: etc/caddy/Caddyfile.j2
-    dest: /etc/caddy/Caddyfile
-    mode: "0600"
-    owner: caddy
-    group: caddy
-  notify: Restart caddy
-  tags:
-    - caddy
-
 - name: Allow http/https/ssh traffic through firewalld
   ansible.posix.firewalld:
     zone: public
@@ -132,7 +88,7 @@
   args:
     creates: "{{ item.creates }}"
   changed_when: false
-  loop: "{{ mirror_repos }}"
+  loop: "{{ mirror_repos + (mirror_kitten_repos if mirror_enable_kitten else []) }}"
   tags:
     - bootstrap_mirror
   when: mirror_bootstrap_mirror
@@ -145,9 +101,9 @@
     minute: "{{ item.rsync_minute }}"
     hour: "{{ item.rsync_hour }}"
     job: "{{ item.rsync_command }}"
-    cron_file: "{{ item.rsync_name }}"  # /etc/cron.d/almalinux_rsync
+    cron_file: "{{ item.rsync_name }}"
     state: "present"
-  loop: "{{ mirror_repos }}"
+  loop: "{{ mirror_repos + (mirror_kitten_repos if mirror_enable_kitten else []) }}"
   tags:
     - cron
   when: mirror_configure_crons
@@ -163,15 +119,119 @@
 
 - name: Certbot
   ansible.builtin.include_tasks: certbot.yml
-  when: mirror_custom_ssl
 
-- name: Start/Enable Caddy
+- name: Ensure Caddy is stopped and disabled
   ansible.builtin.systemd:
     name: caddy.service
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags:
+    - nginx
+
+- name: Install nginx
+  ansible.builtin.dnf:
+    name: nginx
+    state: present
+  tags:
+    - nginx
+
+- name: Distribute /etc/nginx/nginx.conf
+  ansible.builtin.template:
+    src: nginx/nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Check for Let's Encrypt certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem
+  register: mirror_le_cert_check
+  tags:
+    - nginx
+
+- name: Distribute mirror vhost configuration
+  ansible.builtin.template:
+    src: nginx/mirror.conf.j2
+    dest: /etc/nginx/conf.d/{{ inventory_hostname }}.conf
+    mode: "0644"
+    owner: root
+    group: root
+  vars:
+    mirror_ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ inventory_hostname if mirror_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ inventory_hostname }}"
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Remove default nginx site configuration
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Start/Enable nginx
+  ansible.builtin.systemd:
+    name: nginx.service
     state: started
     enabled: true
   tags:
-    - caddy
+    - nginx
+
+- name: Check for existing certbot-managed certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ inventory_hostname }}.conf
+  register: mirror_certbot_renewal_check
+  tags:
+    - certbot
+
+- name: Remove placeholder certificate before certbot provisioning
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ inventory_hostname }}
+    state: absent
+  when: not mirror_certbot_renewal_check.stat.exists
+  tags:
+    - certbot
+
+- name: Obtain SSL certificate with certbot (HTTP auth) # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    --webroot -w /var/lib/letsencrypt
+    --cert-name {{ inventory_hostname }}
+    -d {{ inventory_hostname }}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  when:
+    - not mirror_certbot_renewal_check.stat.exists
+    - mirror_certbot_auth | default('http') == 'http'
+  failed_when: false
+  tags:
+    - certbot
+
+- name: Re-check for Let's Encrypt certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem
+  register: mirror_le_cert_check
+  tags:
+    - certbot
+
+- name: Update mirror vhost config with real certificate path
+  ansible.builtin.template:
+    src: nginx/mirror.conf.j2
+    dest: /etc/nginx/conf.d/{{ inventory_hostname }}.conf
+    mode: "0644"
+    owner: root
+    group: root
+  vars:
+    mirror_ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ inventory_hostname if mirror_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ inventory_hostname }}"
+  notify: Reload nginx
+  tags:
+    - certbot
 
 - name: Install rsyncd
   ansible.builtin.package:
