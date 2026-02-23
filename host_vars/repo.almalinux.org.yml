@@ -24,6 +24,8 @@ almalinux_repo_dirs:
     type: nvme
   - repo: almalinux-kitten
     type: nvme
+  - repo: almalinux-nvidia
+    type: nvme
   - repo: backports
     type: nvme
   - repo: build_system
@@ -41,62 +43,76 @@ almalinux_repo_dirs:
   - repo: wsl
     type: nvme
 
-almalinux_repo_caddy_vhosts:
+almalinux_repo_route53_access_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:route53_access_key',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+almalinux_repo_route53_secret_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:route53_secret_key',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+
+# almalinux_repo_certbot_default_auth: dns_route53
+
+almalinux_repo_vhosts:
   - name: raw.repo.almalinux.org
-    path: /repo
-    file_server: browse
+    root: /repo
+    autoindex: true
     enable_http: true
     redirects:
-      - path: /vault/*
+      - location: /vault/
         strip_prefix: /vault
-        url: "{scheme}://vault.almalinux.org{uri}"
-      - path: /almalinux-kitten/*
+        target_host: vault.almalinux.org
+      - location: /almalinux-kitten/
         strip_prefix: /almalinux-kitten
-        url: "{scheme}://kitten.repo.almalinux.org{uri}"
-      - path: /security/*
+        target_host: kitten.repo.almalinux.org
+      - location: /security/
         strip_prefix: /security
-        url: "{scheme}://security.almalinux.org{uri}"
+        target_host: security.almalinux.org
+      - location: /almalinux-nvidia/
+        strip_prefix: /almalinux-nvidia
+        target_host: nvidia.repo.almalinux.org
   - name: errata.almalinux.org
-    path: /repo/
-    expires: expires-errata.j2
+    root: /repo
+    expires: errata
   - name: kitten.repo.almalinux.org
-    path: /repo/almalinux-kitten
-    file_server: browse
+    root: /repo/almalinux-kitten
+    autoindex: true
     enable_http: true
   - name: epel.repo.almalinux.org
-    path: /repo/almalinux-epel
-    file_server: browse
+    root: /repo/almalinux-epel
+    autoindex: true
     enable_http: true
   - name: security.almalinux.org
-    path: /repo/security
-    file_server: browse
+    root: /repo/security
+    autoindex: true
     enable_http: true
-    expires: expires-errata.j2
+    expires: errata
   - name: raw.vault.almalinux.org
-    path: /repo/vault
-    file_server: browse
+    root: /repo/vault
+    autoindex: true
     enable_http: true
     redirects:
-      - path: /almalinux-epel/*
+      - location: /almalinux-epel/
         strip_prefix: /almalinux-epel
-        url: "{scheme}://epel.vault.almalinux.org{uri}"
+        target_host: epel.vault.almalinux.org
   - name: vault.almalinux.org
-    path: /repo/vault
-    file_server: browse
+    root: /repo/vault
+    autoindex: true
     enable_http: true
     redirects:
-      - path: /almalinux-epel/*
+      - location: /almalinux-epel/
         strip_prefix: /almalinux-epel
-        url: "{scheme}://epel.vault.almalinux.org{uri}"
+        target_host: epel.vault.almalinux.org
   - name: epel.vault.almalinux.org
-    path: /repo/vault/almalinux-epel
-    file_server: browse
+    root: /repo/vault/almalinux-epel
+    autoindex: true
     enable_http: true
   - name: kitten.vault.almalinux.org
-    path: /repo/vault
-    file_server: browse
+    root: /repo/vault
+    autoindex: true
     enable_http: true
   - name: wsl.almalinux.org
-    path: /repo/wsl
-    file_server: browse
+    root: /repo/wsl
+    autoindex: true
+    enable_http: true
+  - name: raw.nvidia.almalinux.org
+    root: /repo/almalinux-nvidia
+    autoindex: true
     enable_http: true
