@@ -114,7 +114,7 @@ almalinux_repo_vhosts:
     root: /repo/wsl
     autoindex: true
     enable_http: true
-  - name: raw.nvidia.almalinux.org
+  - name: raw.nvidia.repo.almalinux.org
     root: /repo/almalinux-nvidia
     autoindex: true
     enable_http: true
