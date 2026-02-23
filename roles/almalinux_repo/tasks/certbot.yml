@@ -1,0 +1,119 @@
+---
+- name: Route 53 tasks
+  ansible.builtin.include_tasks: route53.yml
+  when: >
+    almalinux_repo_certbot_default_auth | default('http') == 'dns_route53'
+    or almalinux_repo_vhosts | selectattr('certbot_auth', 'defined')
+       | selectattr('certbot_auth', 'equalto', 'dns_route53') | list | length > 0
+
+- name: Cloudflare tasks
+  ansible.builtin.include_tasks: cloudflare.yml
+  when: >
+    almalinux_repo_certbot_default_auth | default('http') == 'dns_cloudflare'
+    or almalinux_repo_vhosts | selectattr('certbot_auth', 'defined')
+       | selectattr('certbot_auth', 'equalto', 'dns_cloudflare') | list | length > 0
+
+- name: Install certbot
+  ansible.builtin.package:
+    name:
+      - certbot
+    state: present
+  tags: certbot
+
+- name: Install certbot Route53 plugin
+  ansible.builtin.package:
+    name:
+      - python3-certbot-dns-route53
+    state: present
+  when: >
+    almalinux_repo_certbot_default_auth | default('http') == 'dns_route53'
+    or almalinux_repo_vhosts | selectattr('certbot_auth', 'defined')
+       | selectattr('certbot_auth', 'equalto', 'dns_route53') | list | length > 0
+  tags: certbot
+
+- name: Install certbot Cloudflare plugin
+  ansible.builtin.package:
+    name:
+      - python3-certbot-dns-cloudflare
+    state: present
+  when: >
+    almalinux_repo_certbot_default_auth | default('http') == 'dns_cloudflare'
+    or almalinux_repo_vhosts | selectattr('certbot_auth', 'defined')
+       | selectattr('certbot_auth', 'equalto', 'dns_cloudflare') | list | length > 0
+  tags: certbot
+
+- name: Create ACME webroot directory
+  ansible.builtin.file:
+    path: /var/lib/letsencrypt/.well-known/acme-challenge
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  tags: certbot
+
+- name: Ensure Let's Encrypt directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: directory
+    mode: "0700"
+  tags: certbot
+
+- name: Start/enable certbot renew timer
+  ansible.builtin.systemd_service:
+    name: certbot-renew.timer
+    enabled: true
+    state: started
+  tags: certbot
+
+- name: Configure certbot deploy hook
+  ansible.builtin.template:
+    src: certbot-deploy-hook.sh.j2
+    dest: /etc/letsencrypt/deploy-nginx.sh
+    mode: "0755"
+  tags: certbot
+
+- name: Create self-signed certificate directories
+  ansible.builtin.file:
+    path: /etc/pki/nginx/{{ item.name }}
+    state: directory
+    mode: "0700"
+  loop: "{{ almalinux_repo_vhosts }}"
+  tags: certbot
+
+- name: Generate self-signed certificates for initial nginx startup # noqa no-changed-when
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -days 365 -newkey rsa:2048
+      -keyout /etc/pki/nginx/{{ item.name }}/privkey.pem
+      -out /etc/pki/nginx/{{ item.name }}/fullchain.pem
+      -subj '/CN={{ item.name }}'
+    creates: /etc/pki/nginx/{{ item.name }}/fullchain.pem
+  loop: "{{ almalinux_repo_vhosts }}"
+  tags: certbot
+
+- name: Check for existing certbot certificates (DNS pre-fetch)
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ item.name }}.conf
+  loop: "{{ almalinux_repo_vhosts }}"
+  register: _certbot_dns_check
+  tags: certbot
+
+- name: Obtain DNS-auth certificates before nginx startup # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    {% set _auth = item.item.certbot_auth | default(almalinux_repo_certbot_default_auth | default('http')) %}
+    {% if _auth == 'dns_route53' %}
+    --dns-route53
+    {% elif _auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --dns-cloudflare-propagation-seconds {{ almalinux_repo_cloudflare_propagation_seconds }}
+    {% endif %}
+    --cert-name {{ item.item.name }}
+    -d {{ item.item.name }}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  loop: "{{ _certbot_dns_check.results }}"
+  when:
+    - not item.stat.exists
+    - (item.item.certbot_auth | default(almalinux_repo_certbot_default_auth | default('http'))) != 'http'
+  throttle: 1
+  tags: certbot

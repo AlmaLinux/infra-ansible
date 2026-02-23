@@ -1,0 +1,14 @@
+    # No caching for directory listings
+    location ~ /$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
+    # No caching for repo metadata
+    location ~* /repomd\.xml$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
+    # Cache for XML, compressed XML, and JSON data
+    location ~* \.(xml|xml\.bz2|json)$ {
+        add_header Cache-Control "public, max-age=3600" always;
+    }

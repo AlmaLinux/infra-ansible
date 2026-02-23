@@ -1,3 +1,4 @@
 ---
 almalinux_repo_dir: /repo
 almalinux_repo_deploy_user: deploy-repo-alma
+almalinux_repo_cloudflare_propagation_seconds: 30
