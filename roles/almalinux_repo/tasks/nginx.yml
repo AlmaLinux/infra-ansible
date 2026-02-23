@@ -30,7 +30,7 @@
   ansible.builtin.stat:
     path: /etc/letsencrypt/live/{{ item.name }}/fullchain.pem
   loop: "{{ almalinux_repo_vhosts }}"
-  register: _le_cert_check
+  register: almalinux_repo_le_cert_check
   tags:
     - nginx
 
@@ -41,7 +41,7 @@
     mode: "0644"
     owner: root
     group: root
-  loop: "{{ _le_cert_check.results }}"
+  loop: "{{ almalinux_repo_le_cert_check.results }}"
   vars:
     vhost: "{{ item.item }}"
     _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ item.item.name if item.stat.exists else '/etc/pki/nginx/' ~ item.item.name }}"
