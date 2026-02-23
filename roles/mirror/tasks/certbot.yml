@@ -1,13 +1,49 @@
 ---
 - name: Route 53 tasks
   ansible.builtin.include_tasks: route53.yml
+  when: mirror_certbot_auth | default('http') == 'dns_route53'
 
-- name: Install certbot and route53 plugin
+- name: Cloudflare tasks
+  ansible.builtin.include_tasks: cloudflare.yml
+  when: mirror_certbot_auth | default('http') == 'dns_cloudflare'
+
+- name: Install certbot
   ansible.builtin.package:
     name:
       - certbot
+    state: present
+  tags: certbot
+
+- name: Install certbot Route53 plugin
+  ansible.builtin.package:
+    name:
       - python3-certbot-dns-route53
     state: present
+  when: mirror_certbot_auth | default('http') == 'dns_route53'
+  tags: certbot
+
+- name: Install certbot Cloudflare plugin
+  ansible.builtin.package:
+    name:
+      - python3-certbot-dns-cloudflare
+    state: present
+  when: mirror_certbot_auth | default('http') == 'dns_cloudflare'
+  tags: certbot
+
+- name: Create ACME webroot directory
+  ansible.builtin.file:
+    path: /var/lib/letsencrypt/.well-known/acme-challenge
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  tags: certbot
+
+- name: Ensure Let's Encrypt directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: directory
+    mode: "0700"
   tags: certbot
 
 - name: Start/enable certbot renew timer
@@ -20,15 +56,48 @@
 - name: Configure certbot deploy hook
   ansible.builtin.template:
     src: certbot-deploy-hook.sh.j2
-    dest: /etc/letsencrypt/deploy-caddy.sh
+    dest: /etc/letsencrypt/deploy-nginx.sh
     mode: "0755"
   tags: certbot
 
-- name: Get certificate with certbot
-  args:
-    creates: /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem
+- name: Create self-signed certificate directory
+  ansible.builtin.file:
+    path: /etc/pki/nginx/{{ inventory_hostname }}
+    state: directory
+    mode: "0700"
+  tags: certbot
+
+- name: Generate self-signed certificate for initial nginx startup # noqa no-changed-when
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -days 365 -newkey rsa:2048
+      -keyout /etc/pki/nginx/{{ inventory_hostname }}/privkey.pem
+      -out /etc/pki/nginx/{{ inventory_hostname }}/fullchain.pem
+      -subj '/CN={{ inventory_hostname }}'
+    creates: /etc/pki/nginx/{{ inventory_hostname }}/fullchain.pem
+  tags: certbot
+
+- name: Check for existing certbot certificate (DNS pre-fetch)
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ inventory_hostname }}.conf
+  register: mirror_certbot_dns_check
+  tags: certbot
+
+- name: Obtain DNS-auth certificate before nginx startup # noqa no-changed-when
   ansible.builtin.shell: >
-    certbot certonly --dns-route53 -d {{ inventory_hostname }} -d rsync.repo.almalinux.org -m {{ certbot_email }} --agree-tos -n --force-renewal
-    --deploy-hook /etc/letsencrypt/deploy-caddy.sh
+    certbot certonly
+    {% if mirror_certbot_auth | default('http') == 'dns_route53' %}
+    --dns-route53
+    {% elif mirror_certbot_auth | default('http') == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ mirror_cloudflare_propagation_seconds }}
+    {% endif %}
+    --cert-name {{ inventory_hostname }}
+    -d {{ inventory_hostname }}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  when:
+    - not mirror_certbot_dns_check.stat.exists
+    - mirror_certbot_auth | default('http') != 'http'
   throttle: 1
-  tags: certbot skip_ansible_lint
+  tags: certbot
