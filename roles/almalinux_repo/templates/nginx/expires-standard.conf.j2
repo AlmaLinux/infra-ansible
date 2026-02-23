@@ -4,8 +4,13 @@
     }
 
     # No caching for repo metadata and timestamps
-    location ~* /(repomd\.xml|TIME|timestamp\.txt)$ {
+    location ~* /(TIME|timestamp\.txt)$ {
         add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
+    # Extra short cache for repo metadata
+    location ~* /(repomd\.xml)$ {
+        add_header Cache-Control "public, max-age=60" always;
     }
 
     # Short cache for almalinux-release-latest RPMs
