@@ -1,0 +1,29 @@
+    # No caching for directory listings
+    location ~ /$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
+    # No caching for repo metadata and timestamps
+    location ~* /(repomd\.xml|TIME|timestamp\.txt)$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
+    # Short cache for almalinux-release-latest RPMs
+    location ~* /almalinux-release-latest-\d+\.[a-z0-9_]+\.rpm$ {
+        add_header Cache-Control "public, max-age=900" always;
+    }
+
+    # Immutable cache for large binary assets
+    location ~* \.(drpm|yaml\.gz|xml\.gz|sqlite\.bz2|img|qcow2)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
+    # Immutable cache for RPMs
+    location ~* \.rpm$ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
+    # Medium cache for XML metadata
+    location ~* \.xml$ {
+        add_header Cache-Control "public, max-age=1800" always;
+    }

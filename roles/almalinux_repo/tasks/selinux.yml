@@ -6,7 +6,7 @@
     state: present
   register: almalinux_repo_set_selinux_context
   tags:
-    - caddy
+    - nginx
     - rsyncd
     - selinux
 
@@ -17,7 +17,7 @@
     state: present
   register: almalinux_repo_set_selinux_context
   tags:
-    - caddy
+    - nginx
     - rsyncd
     - selinux
   loop: "{{ almalinux_repo_dirs | map(attribute='type') | unique }}"
@@ -28,6 +28,6 @@
     map('regex_replace', '^', almalinux_repo_dir) | join(' ') }}
   when: almalinux_repo_set_selinux_context.changed
   tags:
-    - caddy
+    - nginx
     - rsyncd
     - selinux

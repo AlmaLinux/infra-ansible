@@ -53,5 +53,11 @@
 - name: SELinux
   ansible.builtin.include_tasks: selinux.yml
 
-- name: Caddy
-  ansible.builtin.include_tasks: caddy.yml
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+
+- name: Nginx
+  ansible.builtin.include_tasks: nginx.yml
+
+- name: Obtain SSL certificates
+  ansible.builtin.include_tasks: certbot-obtain.yml
