@@ -77,10 +77,27 @@
     creates: /etc/pki/nginx/{{ inventory_hostname }}/fullchain.pem
   tags: certbot
 
-- name: Check for existing certbot certificate (DNS pre-fetch)
+- name: Check for existing Let's Encrypt certificate (DNS pre-fetch)
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem
+  register: mirror_certbot_dns_cert_check
+  tags: certbot
+
+- name: Check for stale certbot renewal config
   ansible.builtin.stat:
     path: /etc/letsencrypt/renewal/{{ inventory_hostname }}.conf
-  register: mirror_certbot_dns_check
+  register: mirror_certbot_dns_renewal_check
+  when: not mirror_certbot_dns_cert_check.stat.exists
+  tags: certbot
+
+- name: Remove stale certbot state # noqa no-changed-when
+  ansible.builtin.command:
+    cmd: certbot delete --cert-name {{ inventory_hostname }} -n
+  when:
+    - not mirror_certbot_dns_cert_check.stat.exists
+    - mirror_certbot_dns_renewal_check.stat is defined
+    - mirror_certbot_dns_renewal_check.stat.exists
+  failed_when: false
   tags: certbot
 
 - name: Obtain DNS-auth certificate before nginx startup # noqa no-changed-when
@@ -94,10 +111,23 @@
     {% endif %}
     --cert-name {{ inventory_hostname }}
     -d {{ inventory_hostname }}
+    {% for domain in mirror_extra_domains %}
+    -d {{ domain }}
+    {% endfor %}
     -m {{ certbot_email }} --agree-tos -n
     --deploy-hook /etc/letsencrypt/deploy-nginx.sh
   when:
-    - not mirror_certbot_dns_check.stat.exists
+    - not mirror_certbot_dns_cert_check.stat.exists
     - mirror_certbot_auth | default('http') != 'http'
   throttle: 1
+  tags: certbot
+
+- name: Update certbot deploy hook to nginx
+  ansible.builtin.lineinfile:
+    path: /etc/letsencrypt/renewal/{{ inventory_hostname }}.conf
+    regexp: '^renew_hook\s*='
+    line: 'renew_hook = /etc/letsencrypt/deploy-nginx.sh'
+    insertafter: '^\[renewalparams\]'
+  when: mirror_certbot_dns_cert_check.stat.exists
+  failed_when: false
   tags: certbot

@@ -1,6 +1,7 @@
 ---
 mirror_tier0: false
 mirror_cloudflare_propagation_seconds: 30
+mirror_extra_domains: []
 mirror_path: /mirror
 # use a /almalinux subdir within mirror_path if true
 mirror_path_use_subdir: true
