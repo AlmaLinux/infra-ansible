@@ -296,11 +296,13 @@
     enabled: true
   when: mirror_rsync_modules
 
-- name: Start rsyncd
-  ansible.builtin.systemd_service:
+- name: Ensure rsyncd is running
+  ansible.builtin.service:
     name: rsyncd
     state: started
   when: mirror_rsync_modules
+  # because this task isn't idempotent for whatever reason.  ansible bug?
+  changed_when: false
 
 - name: User
   ansible.builtin.include_tasks: user.yml
