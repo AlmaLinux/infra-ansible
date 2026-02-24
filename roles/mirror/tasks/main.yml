@@ -183,10 +183,29 @@
   tags:
     - nginx
 
-- name: Check for existing certbot-managed certificate
+- name: Check for Let's Encrypt certificate after nginx start
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem
+  register: mirror_le_cert_post_start
+  tags:
+    - certbot
+
+- name: Check for stale certbot renewal config
   ansible.builtin.stat:
     path: /etc/letsencrypt/renewal/{{ inventory_hostname }}.conf
   register: mirror_certbot_renewal_check
+  when: not mirror_le_cert_post_start.stat.exists
+  tags:
+    - certbot
+
+- name: Remove stale certbot state # noqa no-changed-when
+  ansible.builtin.command:
+    cmd: certbot delete --cert-name {{ inventory_hostname }} -n
+  when:
+    - not mirror_le_cert_post_start.stat.exists
+    - mirror_certbot_renewal_check.stat is defined
+    - mirror_certbot_renewal_check.stat.exists
+  failed_when: false
   tags:
     - certbot
 
@@ -194,21 +213,45 @@
   ansible.builtin.file:
     path: /etc/letsencrypt/live/{{ inventory_hostname }}
     state: absent
-  when: not mirror_certbot_renewal_check.stat.exists
+  when: not mirror_le_cert_post_start.stat.exists
   tags:
     - certbot
 
-- name: Obtain SSL certificate with certbot (HTTP auth) # noqa no-changed-when
+- name: Obtain SSL certificate with certbot # noqa no-changed-when
   ansible.builtin.shell: >
     certbot certonly
+    {% if mirror_certbot_auth | default('http') == 'dns_route53' %}
+    --dns-route53
+    {% elif mirror_certbot_auth | default('http') == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ mirror_cloudflare_propagation_seconds }}
+    {% else %}
     --webroot -w /var/lib/letsencrypt
+    {% endif %}
     --cert-name {{ inventory_hostname }}
     -d {{ inventory_hostname }}
+    {% for domain in mirror_extra_domains %}
+    -d {{ domain }}
+    {% endfor %}
     -m {{ certbot_email }} --agree-tos -n
     --deploy-hook /etc/letsencrypt/deploy-nginx.sh
   when:
-    - not mirror_certbot_renewal_check.stat.exists
-    - mirror_certbot_auth | default('http') == 'http'
+    - not mirror_le_cert_post_start.stat.exists
+  register: mirror_certbot_result
+  failed_when:
+    - mirror_certbot_result.rc != 0
+    - mirror_certbot_auth | default('http') != 'http'
+  throttle: 1
+  tags:
+    - certbot
+
+- name: Update certbot deploy hook to nginx
+  ansible.builtin.lineinfile:
+    path: /etc/letsencrypt/renewal/{{ inventory_hostname }}.conf
+    regexp: '^renew_hook\s*='
+    line: 'renew_hook = /etc/letsencrypt/deploy-nginx.sh'
+    insertafter: '^\[renewalparams\]'
+  when: mirror_le_cert_post_start.stat.exists
   failed_when: false
   tags:
     - certbot
@@ -247,10 +290,15 @@
   notify: Restart rsyncd
   when: mirror_rsync_modules
 
-- name: Start rsyncd
+- name: Enable rsyncd
   ansible.builtin.systemd_service:
     name: rsyncd
     enabled: true
+  when: mirror_rsync_modules
+
+- name: Start rsyncd
+  ansible.builtin.systemd_service:
+    name: rsyncd
     state: started
   when: mirror_rsync_modules
 
