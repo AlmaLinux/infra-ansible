@@ -19,6 +19,7 @@ common_packages:
   - nano
   - ncdu
   - nload
+  - openssl
   # needed by many ansible roles that adjust selinux
   - policycoreutils-python-utils
   - rsync

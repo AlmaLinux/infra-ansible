@@ -1,10 +1,11 @@
 # {{ ansible_managed }}
 # Mirror: {{ inventory_hostname }}
 
+{% set all_server_names = [inventory_hostname] + mirror_extra_domains %}
 {% if mirror_enable_http | default(true) %}
 server {
     listen 80;
-    server_name {{ inventory_hostname }};
+    server_name {{ all_server_names | join(' ') }};
 
     location /.well-known/acme-challenge/ {
         root /var/lib/letsencrypt;
@@ -18,7 +19,7 @@ server {
 {% else %}
 server {
     listen 80;
-    server_name {{ inventory_hostname }};
+    server_name {{ all_server_names | join(' ') }};
 
     location /.well-known/acme-challenge/ {
         root /var/lib/letsencrypt;
@@ -32,7 +33,7 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name {{ inventory_hostname }};
+    server_name {{ all_server_names | join(' ') }};
 
     ssl_certificate {{ mirror_ssl_cert_path }}/fullchain.pem;
     ssl_certificate_key {{ mirror_ssl_cert_path }}/privkey.pem;
