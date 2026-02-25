@@ -28,5 +28,35 @@ http {
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
+    gzip            on;
+    gzip_vary       on;
+    gzip_proxied    any;
+    gzip_comp_level 6;
+    gzip_min_length 256;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml
+        application/rss+xml
+        image/svg+xml;
+
+    brotli          on;
+    brotli_comp_level 6;
+    brotli_min_length 256;
+    brotli_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml
+        application/rss+xml
+        image/svg+xml;
+
     include /etc/nginx/conf.d/*.conf;
 }
