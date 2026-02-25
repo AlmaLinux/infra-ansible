@@ -129,9 +129,11 @@
   tags:
     - nginx
 
-- name: Install nginx
+- name: Install nginx and brotli module
   ansible.builtin.dnf:
-    name: nginx
+    name:
+      - nginx
+      - nginx-mod-brotli
     state: present
   tags:
     - nginx
