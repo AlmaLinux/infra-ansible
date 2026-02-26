@@ -50,6 +50,15 @@
   tags:
     - firewalld
 
+- name: Customize sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value | string }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ almalinux_repo_sysctl_performance }}"
+  tags:
+    - sysctl
+
 - name: SELinux
   ansible.builtin.include_tasks: selinux.yml
 
