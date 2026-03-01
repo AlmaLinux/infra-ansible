@@ -138,6 +138,12 @@
   tags:
     - nginx
 
+- name: Gather package facts for nginx version check
+  ansible.builtin.package_facts:
+    manager: auto
+  tags:
+    - nginx
+
 - name: Distribute /etc/nginx/nginx.conf
   ansible.builtin.template:
     src: nginx/nginx.conf.j2

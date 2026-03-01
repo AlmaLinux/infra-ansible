@@ -28,6 +28,7 @@
 {% if vhost.enable_http | default(false) %}
 server {
     listen 80;
+    listen [::]:80;
     server_name {{ vhost.name }};
 
     location /.well-known/acme-challenge/ {
@@ -39,6 +40,7 @@ server {
 {% else %}
 server {
     listen 80;
+    listen [::]:80;
     server_name {{ vhost.name }};
 
     location /.well-known/acme-challenge/ {
@@ -52,7 +54,14 @@ server {
 {% endif %}
 
 server {
+{% if ansible_facts.packages['nginx'][0]['version'] is version('1.25.1', '>=') %}
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+{% else %}
     listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+{% endif %}
     server_name {{ vhost.name }};
 
     ssl_certificate {{ _ssl_cert_path }}/fullchain.pem;
