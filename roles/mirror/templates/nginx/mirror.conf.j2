@@ -5,6 +5,7 @@
 {% if mirror_enable_http | default(true) %}
 server {
     listen 80;
+    listen [::]:80;
     server_name {{ all_server_names | join(' ') }};
 
     location /.well-known/acme-challenge/ {
@@ -19,6 +20,7 @@ server {
 {% else %}
 server {
     listen 80;
+    listen [::]:80;
     server_name {{ all_server_names | join(' ') }};
 
     location /.well-known/acme-challenge/ {
@@ -32,7 +34,14 @@ server {
 {% endif %}
 
 server {
+{% if ansible_facts.packages['nginx'][0]['version'] is version('1.25.1', '>=') %}
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+{% else %}
     listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+{% endif %}
     server_name {{ all_server_names | join(' ') }};
 
     ssl_certificate {{ mirror_ssl_cert_path }}/fullchain.pem;
