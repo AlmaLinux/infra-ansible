@@ -64,12 +64,9 @@ ssh_listen_to:
   - "::"
 
 # zabbix agent
-<<<<<<< HEAD
 # needed until role is updated to realize 7.0 works on almalinux 10
 # https://github.com/ansible-collections/community.zabbix/pull/1644
 zabbix_agent_version_check: false
-=======
->>>>>>> 6bdb2db (update default zabbix agent version)
 zabbix_agent_version: 7.0
 zabbix_agent2: true
 zabbix_agent_visible_hostname: "{{ inventory_hostname }}"

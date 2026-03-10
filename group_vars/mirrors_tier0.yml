@@ -16,21 +16,12 @@ mirror_rsync_modules:
   almalinux-elevate:
     path: "{{ mirror_path }}/elevate"
     comment: AlmaLinux ELevate repository
-<<<<<<< HEAD
-<<<<<<< HEAD
   almalinux-kitten:
     path: "{{ mirror_path }}/almalinux-kitten"
     comment: AlmaLinux Kitten repository
   almalinux-epel:
     path: "{{ mirror_path }}/almalinux-epel"
     comment: AlmaLinux EPEL repository
-=======
->>>>>>> 660d4be (convert mirror role to nginx)
-=======
-  almalinux-epel:
-    path: "{{ mirror_path }}/almalinux-epel"
-    comment: AlmaLinux EPEL repository
->>>>>>> 14060fa (Update rsync mirrors to nginx from caddy)
 mirror_tier0_deploy_user: deploy-repo-alma
 mirror_tier0_deploy_pubkey: "{{ lookup('community.hashi_vault.hashi_vault',
   'kv/data/infra/{% if staging %}stg/{% endif %}mirror_tier0:mirror_tier0_deploy_pubkey ',
