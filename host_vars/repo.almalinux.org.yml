@@ -67,9 +67,22 @@ almalinux_repo_vhosts:
       - location: /security/
         strip_prefix: /security
         target_host: security.almalinux.org
-      - location: /almalinux-nvidia/
-        strip_prefix: /almalinux-nvidia
+      - location: /nvidia/
+        strip_prefix: /nvidia
         target_host: nvidia.repo.almalinux.org
+      # Legacy CUDA paths: previously published under the mainline almalinux repo
+      # layout (/almalinux/<ver>/nvidia/[<arch>/[os/]]...) before being moved to
+      # the dedicated almalinux-nvidia repo. Maintain these redirects indefinitely.
+      # The first location handles the full /<arch>/os/<rest> form and drops the
+      # `os` segment; the second catches anything else under /<ver>/nvidia/
+      # (including bare /nvidia/, /nvidia/<arch>/, debug/, source/, etc.).
+      - raw: |
+          location ~ ^/almalinux/([^/]+)/nvidia/([^/]+)/os(/.*)?$ {
+              return 301 $scheme://nvidia.repo.almalinux.org/cuda/$1/$2$3;
+          }
+          location ~ ^/almalinux/([^/]+)/nvidia(/.*)?$ {
+              return 301 $scheme://nvidia.repo.almalinux.org/cuda/$1$2;
+          }
   - name: errata.almalinux.org
     root: /repo
     expires: errata
@@ -118,3 +131,12 @@ almalinux_repo_vhosts:
     root: /repo/almalinux-nvidia
     autoindex: true
     enable_http: true
+    # originally we deployed the cuda repos to the docroot, but now we use a subdirectory
+    # these redirects should be maintained indefitely
+    redirects:
+      - location: /10-kitten
+        target_path: /cuda/10
+      - location: /10
+        target_path: /cuda/10
+      - location: /9
+        target_path: /cuda/9
