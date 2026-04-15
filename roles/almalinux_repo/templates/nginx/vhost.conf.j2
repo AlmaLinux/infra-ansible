@@ -8,13 +8,21 @@
 {% endif %}
 
 {% for redirect in vhost.redirects | default([]) %}
-    location ^~ {{ redirect.location }} {
-{% if redirect.strip_prefix is defined %}
-        rewrite ^{{ redirect.strip_prefix }}(/.*) $scheme://{{ redirect.target_host }}$1 {{ redirect.type | default('permanent') }};
-{% else %}
-        return 301 $scheme://{{ redirect.target_host }}$request_uri;
-{% endif %}
+{% if redirect.raw is defined %}
+{{ redirect.raw }}
+{% elif redirect.target_path is defined %}
+    location ~ ^{{ redirect.location }}(/.*)?$ {
+        rewrite ^{{ redirect.location }}(/.*)?$ {{ redirect.target_path }}$1 permanent;
     }
+{% elif redirect.strip_prefix is defined %}
+    location ^~ {{ redirect.location }} {
+        rewrite ^{{ redirect.strip_prefix }}(/.*) $scheme://{{ redirect.target_host }}$1 {{ redirect.type | default('permanent') }};
+    }
+{% else %}
+    location ^~ {{ redirect.location }} {
+        return 301 $scheme://{{ redirect.target_host }}$request_uri;
+    }
+{% endif %}
 
 {% endfor %}
 {% include 'nginx/expires-' ~ (vhost.expires | default('standard')) ~ '.conf.j2' %}
