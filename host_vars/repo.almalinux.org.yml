@@ -10,8 +10,65 @@ almalinux_repo_deploy_user_private_key: "{{ lookup('community.hashi_vault.hashi_
 almalinux_repo_deploy_user_pub_key: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:sync_user_public_key',
         token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
 
-firewalld_extra_allow_ports:
-  - "873/tcp"
+# 873/tcp is NOT a blanket open. Access is restricted to specific sources via
+# `firewalld_extra_rich_rules` below so we can add/remove allowed clients at
+# runtime without restarting rsyncd (which would break in-flight pulls).
+firewalld_extra_allow_ports: []
+
+# Sources permitted to connect to rsyncd on 873/tcp. Primarily the tier0
+# rsync servers (mirrors_tier0 group) plus any ad-hoc clients. Keep IPv4 and
+# IPv6 entries in sync. Replace the placeholder addresses with the actual
+# public IPs before applying.
+almalinux_repo_rsync_allowed_sources:
+  # atl.rsync.repo.almalinux.org
+  - { family: ipv4, address: "162.255.95.162" }
+  - { family: ipv6, address: "2605:7b80:1:2::2" }
+  # sea.rsync.repo.almalinux.org
+  - { family: ipv4, address: "162.43.206.5" }
+  - { family: ipv6, address: "2605:21c0:1000:4e::5" }
+  # gra.rsync.repo.almalinux.org
+  - { family: ipv4, address: "91.134.76.173" }
+  - { family: ipv6, address: "2001:41d0:348:ad00::1" }
+
+# Expand allowed-sources into firewalld rich rules consumed by
+# roles/common/tasks/firewalld.yml. One tcp/873 accept rule per source.
+# (Ansible's Jinja doesn't accept inline list comprehensions, hence the
+# set/append loop pattern.)
+firewalld_extra_rich_rules: >-
+  {%- set rules = [] -%}
+  {%- for s in almalinux_repo_rsync_allowed_sources -%}
+  {%- set _ = rules.append(
+    'rule family="' ~ s.family ~ '" source address="' ~ s.address ~
+    '" port protocol="tcp" port="873" accept') -%}
+  {%- endfor -%}
+  {{ rules }}
+
+# rsyncd modules served from this host. Module names must match the `src`
+# values in the tier0 catalog (group_vars/mirrors_tier0.yml) so the
+# mirror-pull script on each rsync server resolves the right path. Module
+# name need not match the on-disk directory name (e.g. almalinux-elevate
+# serves /repo/elevate, vault serves /repo/vault which is the HDD-backed
+# subtree).
+almalinux_repo_rsync_modules:
+  almalinux:
+    path: "{{ almalinux_repo_dir }}/almalinux"
+    comment: AlmaLinux repository
+  almalinux-kitten:
+    path: "{{ almalinux_repo_dir }}/almalinux-kitten"
+    comment: AlmaLinux Kitten repository
+  almalinux-epel:
+    path: "{{ almalinux_repo_dir }}/almalinux-epel"
+    comment: AlmaLinux EPEL repository
+  almalinux-elevate:
+    path: "{{ almalinux_repo_dir }}/elevate"
+    comment: AlmaLinux ELevate repository
+  vault:
+    path: "{{ almalinux_repo_dir }}/vault"
+    comment: AlmaLinux vault (historical releases)
+
+# Fan-out trigger: repo-alma-sync.sh SSHes to each host in the mirrors_tier0
+# inventory group to kick mirror-pull.service after ALBS pushes new content.
+almalinux_repo_sync_trigger_enabled: true
 
 almalinux_repo_ssh_authorized_keys:
   # ALBS

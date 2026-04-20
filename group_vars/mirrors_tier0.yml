@@ -22,7 +22,91 @@ mirror_rsync_modules:
   almalinux-epel:
     path: "{{ mirror_path }}/almalinux-epel"
     comment: AlmaLinux EPEL repository
+  # this may not exist everywhere but that's OK — it's just a historical archive and not all rsync mirrors need to carry it
+  almalinux-vault:
+    path: "{{ mirror_path }}/vault"
+    comment: AlmaLinux vault (historical releases)
 mirror_tier0_deploy_user: deploy-repo-alma
 mirror_tier0_deploy_pubkey: "{{ lookup('community.hashi_vault.hashi_vault',
   'kv/data/infra/{% if staging %}stg/{% endif %}mirror_tier0:mirror_tier0_deploy_pubkey ',
   token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+
+# On-demand pull from raw.repo.almalinux.org. Service is started over SSH from
+# the raw repo host when there's new content to publish.
+mirror_pull_enabled: true
+# Applied to every repo on top of the role default (.~tmp~).
+mirror_pull_excludes:
+  - .~tmp~
+  - .assets
+  - TIME
+  - timestamp.txt
+
+# ---------------------------------------------------------------------------
+# Central catalog of pullable repos. Each entry is the "what to sync, how to
+# sync it" definition, defined once and reused across rsync servers via
+# mirror_pull_repo_assignments below. Add a new repo here once; pick which
+# servers get it via the assignment table.
+# ---------------------------------------------------------------------------
+mirror_pull_repo_catalog:
+  almalinux:
+    name: almalinux
+    src: almalinux
+    dest: "{{ mirror_path }}/almalinux"
+    excludes:
+      - .backup
+      - "*-beta"
+      - "almalinux*latest-*-beta.*.rpm"
+  almalinux-kitten:
+    name: almalinux-kitten
+    src: almalinux-kitten
+    dest: "{{ mirror_path }}/almalinux-kitten"
+    excludes: []
+  almalinux-epel:
+    name: almalinux-epel
+    src: almalinux-epel
+    dest: "{{ mirror_path }}/almalinux-epel"
+    excludes: []
+  almalinux-elevate:
+    name: almalinux-elevate
+    src: almalinux-elevate
+    dest: "{{ mirror_path }}/elevate"
+    excludes: []
+  almalinux-vault:
+    name: vault
+    src: vault
+    dest: "{{ mirror_path }}/vault"
+    excludes: []
+
+# ---------------------------------------------------------------------------
+# Per-server repo assignment. Keys are inventory_hostname; values are catalog
+# keys (preserves order — repos sync in the order listed). This is the single
+# place to look to see "what does each rsync server pull?"
+#
+#                                  | almalinux | kitten | epel | elevate | vault |
+#  --------------------------------+-----------+--------+------+---------+-------+
+#  atl.rsync.repo.almalinux.org    |     X     |   X    |  X   |    X    |   X   |
+#  sea.rsync.repo.almalinux.org    |     X     |   X    |  X   |    X    |   X   |
+# ---------------------------------------------------------------------------
+mirror_pull_repo_assignments:
+  atl.rsync.repo.almalinux.org:
+    - almalinux
+    - almalinux-kitten
+    - almalinux-epel
+    - almalinux-elevate
+    - almalinux-vault
+  sea.rsync.repo.almalinux.org:
+    - almalinux
+    - almalinux-kitten
+    - almalinux-epel
+    - almalinux-elevate
+  gra.rsync.repo.almalinux.org:
+    - almalinux
+    - almalinux-kitten
+    - almalinux-epel
+    - almalinux-elevate
+
+# Computed per-host from the catalog + assignment. Override a single host's
+# list by setting `mirror_pull_repos:` directly in its host_vars.
+mirror_pull_repos: >-
+  {{ (mirror_pull_repo_assignments[inventory_hostname] | default([]))
+     | map('extract', mirror_pull_repo_catalog) | list }}

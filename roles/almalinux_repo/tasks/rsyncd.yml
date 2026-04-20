@@ -1,0 +1,50 @@
+---
+# Configure rsyncd on the raw repo host so the tier0 rsync servers can pull
+# content via the mirror-pull script. Modules are defined per-host (see
+# host_vars/repo.almalinux.org.yml) so they stay aligned with the disk layout.
+
+- name: Install rsyncd
+  ansible.builtin.package:
+    name: rsync-daemon
+    state: present
+  when: almalinux_repo_rsync_modules
+  tags:
+    - rsyncd
+
+- name: Configure rsyncd
+  ansible.builtin.template:
+    src: rsyncd.conf.j2
+    dest: /etc/rsyncd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyncd
+  when: almalinux_repo_rsync_modules
+  tags:
+    - rsyncd
+
+- name: Enable rsyncd
+  ansible.builtin.systemd_service:
+    name: rsyncd
+    enabled: true
+  when: almalinux_repo_rsync_modules
+  tags:
+    - rsyncd
+
+- name: Ensure rsyncd is running
+  ansible.builtin.service:
+    name: rsyncd
+    state: started
+  when: almalinux_repo_rsync_modules
+  # service module isn't always idempotent here; same workaround as the
+  # mirror role uses.
+  changed_when: false
+  tags:
+    - rsyncd
+
+# Firewall access to 873/tcp is intentionally NOT opened here. rsyncd on this
+# host is restricted to specific allowed sources
+# via `firewalld_extra_rich_rules` in host_vars.
+# Doing it in firewalld (rather than rsyncd.conf `hosts allow`) lets us
+# add/remove allowed sources at runtime without restarting rsyncd and
+# dropping in-flight pulls.

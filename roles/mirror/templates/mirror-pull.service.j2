@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Pull AlmaLinux repository content from {{ mirror_pull_source_host }}
+Documentation=https://github.com/AlmaLinux/infra-ansible
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists={{ mirror_pull_config_file }}
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart={{ mirror_pull_script_path }} --config {{ mirror_pull_config_file }}
+# Long-running pulls are expected; do not let systemd interrupt them.
+TimeoutStartSec={{ mirror_pull_service_timeout }}
+# Output already includes timestamps; let systemd capture it directly.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ mirror_pull_service_name }}
+
+# No [Install] section: this unit is started on demand over SSH from
+# {{ mirror_pull_source_host }}; it is never enabled to start at boot.

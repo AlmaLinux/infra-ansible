@@ -3,6 +3,22 @@ almalinux_repo_dir: /repo
 almalinux_repo_deploy_user: deploy-repo-alma
 almalinux_repo_cloudflare_propagation_seconds: 30
 
+# rsyncd modules served from this host so the tier0 rsync servers can pull
+# via the mirror-pull script. Empty by default — define per-host alongside
+# the disk layout (e.g. host_vars/repo.almalinux.org.yml). Each entry is a
+# dict of rsyncd.conf key/value pairs (path, comment, hosts allow, etc.).
+almalinux_repo_rsync_modules: {}
+almalinux_repo_rsyncd_max_connections: 1000
+
+# Fan-out trigger for tier0 mirror pulls. ALBS starts the
+# repo-alma-sync.service after pushing new content, and the script SSHes to
+# each host in this list to touch a sync-requested flag and start the
+# mirror-pull service.
+almalinux_repo_sync_trigger_enabled: false
+almalinux_repo_sync_trigger_hosts: "{{ groups['mirrors_tier0'] | default([]) }}"
+almalinux_repo_sync_trigger_flag: /var/lib/mirror-pull/sync-requested
+almalinux_repo_sync_trigger_service: mirror-pull.service
+
 # inspiration from https://github.com/PhirePhly/micromirrors/blob/main/files/sysctl.performancetune.conf
 almalinux_repo_sysctl_performance:
   - name: net.core.default_qdisc

@@ -1,0 +1,27 @@
+---
+# Deploy the fan-out trigger script and systemd unit on repo.almalinux.org.
+# ALBS (or any automation) starts this unit after pushing new content. The
+# script SSHes to each tier0 rsync server, touches a sync-requested flag, and
+# kicks mirror-pull.service. The flag-file + re-check loop in mirror-pull.py
+# ensures no trigger is lost even when syncs overlap.
+
+- name: Install repo-alma-sync trigger script
+  ansible.builtin.template:
+    src: repo-alma-sync.sh.j2
+    dest: /usr/local/bin/repo-alma-sync.sh
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - sync_trigger
+
+- name: Install repo-alma-sync systemd unit
+  ansible.builtin.template:
+    src: repo-alma-sync.service.j2
+    dest: /etc/systemd/system/repo-alma-sync.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  tags:
+    - sync_trigger

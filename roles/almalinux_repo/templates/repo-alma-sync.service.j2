@@ -1,0 +1,18 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Trigger tier0 mirror pulls from repo.almalinux.org
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ almalinux_repo_deploy_user }}
+Group={{ almalinux_repo_deploy_user }}
+ExecStart=/usr/local/bin/repo-alma-sync.sh
+# Fan-out is SSH fire-and-forget; should finish in seconds.
+TimeoutStartSec=60
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=repo-alma-sync
+
+# No [Install] section: started on demand by ALBS or manually.

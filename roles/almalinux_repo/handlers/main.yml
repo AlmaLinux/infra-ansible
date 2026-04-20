@@ -8,3 +8,12 @@
   ansible.builtin.systemd_service:
     name: nginx.service
     state: restarted
+
+- name: Restart rsyncd
+  ansible.builtin.systemd_service:
+    name: rsyncd.service
+    state: restarted
+
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
