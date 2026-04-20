@@ -1,0 +1,11 @@
+<?php
+$g_hostname               = 'localhost';
+$g_db_type                = '{{ mantisbt_db_type }}';
+$g_database_name          = '{{ mantisbt_db_name }}';
+$g_db_username            = '{{ mantisbt_db_user }}';
+$g_db_password            = '{{ mantisbt_db_pass }}';
+
+$g_default_timezone       = 'UTC';
+$g_crypto_master_salt     = {{ retrieved_salt[0]|default("'DaLi1KhE8tzTAKX0Pq5/cLA6o2r3Kfh00TOWtxKPs24='") }};
+{% set mantis_node_ip_address=hostvars[inventory_hostname]['ansible_default_ipv4']['address'] %}
+$g_path                   =  'http://{{ mantis_node_ip_address }}/mantisbt/';
