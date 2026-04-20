@@ -1,0 +1,47 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Trigger mirror pulls on all tier0 rsync servers.
+#
+# Safe to call any number of times, even while syncs are in progress. Each
+# tier0's mirror-pull.py uses a flag-file + re-check loop that ensures no
+# trigger is ever lost.
+#
+# Usage (from ALBS or a systemd unit):
+#   /usr/local/bin/repo-alma-sync.sh
+
+set -euo pipefail
+
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "ERROR: do not run as root -- use: sudo -u {{ almalinux_repo_deploy_user }} $0" >&2
+    exit 1
+fi
+
+# --- Ansible-templated variables ---
+USER="{{ almalinux_repo_deploy_user }}"
+KEY="/home/${USER}/.ssh/deploy-repo-alma.private.key"
+FLAG="{{ almalinux_repo_sync_trigger_flag }}"
+SERVICE="{{ almalinux_repo_sync_trigger_service }}"
+SSH_OPTS="-o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+
+HOSTS=(
+{% for host in almalinux_repo_sync_trigger_hosts %}
+    "{{ host }}"
+{% endfor %}
+)
+
+# --- Pure bash below (raw block prevents Jinja from eating bash syntax) ---
+{% raw %}
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] repo-alma-sync: triggering ${#HOSTS[@]} tier0 hosts"
+
+for host in "${HOSTS[@]}"; do
+    # 1. Touch the flag file (runs as deploy user, no sudo needed)
+    # 2. Start the service (sudo, --no-block so SSH returns immediately)
+    # Both commands are idempotent. If the service is already running, the
+    # flag ensures a re-sync happens after the current run finishes.
+    ssh $SSH_OPTS -i "$KEY" "${USER}@${host}" \
+        "touch ${FLAG} && sudo /usr/bin/systemctl start --no-block ${SERVICE}" &
+done
+
+wait
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] repo-alma-sync: all triggers dispatched"
+{% endraw %}

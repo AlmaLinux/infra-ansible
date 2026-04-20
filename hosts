@@ -35,6 +35,7 @@ el7.repo.almalinux.org
 [mirrors_tier0]
 atl.rsync.repo.almalinux.org
 sea.rsync.repo.almalinux.org
+gra.rsync.repo.almalinux.org
 
 [mirrors:children]
 mirrors_tier0

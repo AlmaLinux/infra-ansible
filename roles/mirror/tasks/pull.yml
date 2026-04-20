@@ -1,0 +1,98 @@
+---
+# Install the on-demand pull-from-raw script and systemd unit.
+# Triggered remotely (over SSH) from {{ mirror_pull_source_host }} when there
+# is new content to publish. The orchestrator can confirm success via the
+# exit code of `systemctl start --wait {{ mirror_pull_service_name }}.service`
+# and/or by reading the JSON status at {{ mirror_pull_status_file }}.
+
+- name: Create mirror-pull config directory
+  ansible.builtin.file:
+    path: "{{ mirror_pull_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - mirror_pull
+
+- name: Create mirror-pull status directory
+  ansible.builtin.file:
+    path: "{{ mirror_pull_status_dir }}"
+    state: directory
+    owner: "{{ mirror_tier0_deploy_user | default('root') }}"
+    group: "{{ mirror_tier0_deploy_user | default('root') }}"
+    mode: "0755"
+  tags:
+    - mirror_pull
+
+- name: Install mirror-pull script
+  ansible.builtin.copy:
+    src: mirror-pull.py
+    dest: "{{ mirror_pull_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - mirror_pull
+
+- name: Write mirror-pull config
+  ansible.builtin.copy:
+    dest: "{{ mirror_pull_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    # sort_keys=False keeps `_comment` at the top so the notice is the first
+    # thing a human sees when opening the file.
+    content: "{{ mirror_pull_config | to_nice_json(indent=2, sort_keys=False) }}\n"
+  vars:
+    mirror_pull_config:
+      _comment: "Managed by Ansible -- do not edit on target hosts; changes will be overwritten. Source: infra-ansible/roles/mirror/tasks/pull.yml"
+      source_url: "{{ mirror_pull_source_url }}"
+      rsync_bin: "{{ mirror_pull_rsync_bin }}"
+      rsync_options: "{{ mirror_pull_rsync_options }}"
+      global_excludes: "{{ mirror_pull_excludes }}"
+      lockfile: "{{ mirror_pull_lockfile }}"
+      status_file: "{{ mirror_pull_status_file }}"
+      max_parallel_repos: "{{ mirror_pull_max_parallel_repos }}"
+      sync_requested_file: "{{ mirror_pull_sync_requested_file }}"
+      repos: "{{ mirror_pull_repos }}"
+  tags:
+    - mirror_pull
+
+- name: Install mirror-pull systemd unit
+  ansible.builtin.template:
+    src: mirror-pull.service.j2
+    dest: "/etc/systemd/system/{{ mirror_pull_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  tags:
+    - mirror_pull
+
+- name: Reload systemd for mirror-pull unit changes
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - mirror_pull
+
+# Passwordless sudo so the deploy user (authenticated via SSH from
+# {{ mirror_pull_source_host }}) can trigger the service without an
+# interactive password. Constrained to the exact argv used by the
+# orchestrator; broader systemctl privileges are deliberately NOT granted.
+# `validate: visudo -cf %s` parses the file before installing so a
+# malformed rule can never lock out sudo.
+- name: Install sudoers rule for mirror-pull trigger
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/mirror-pull
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+    content: |
+      # Managed by Ansible -- do not edit directly.
+      # Source: infra-ansible/roles/mirror/tasks/pull.yml
+      {{ mirror_tier0_deploy_user }} ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block {{ mirror_pull_service_name }}.service
+  when: mirror_tier0_deploy_user is defined
+  tags:
+    - mirror_pull
+    - sudoers

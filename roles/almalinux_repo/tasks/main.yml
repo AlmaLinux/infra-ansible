@@ -70,3 +70,12 @@
 
 - name: Obtain SSL certificates
   ansible.builtin.include_tasks: certbot-obtain.yml
+
+- name: Rsyncd
+  ansible.builtin.include_tasks: rsyncd.yml
+
+- name: Sync trigger fan-out
+  ansible.builtin.include_tasks: sync-trigger.yml
+  when: almalinux_repo_sync_trigger_enabled
+  tags:
+    - sync_trigger

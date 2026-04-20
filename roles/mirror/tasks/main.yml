@@ -318,3 +318,9 @@
 - name: Extra tier0 setup
   ansible.builtin.include_tasks: tier0.yml
   when: mirror_tier0
+
+- name: Install on-demand pull-from-raw service
+  ansible.builtin.include_tasks: pull.yml
+  when: mirror_pull_enabled
+  tags:
+    - mirror_pull
