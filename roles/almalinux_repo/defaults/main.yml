@@ -11,7 +11,7 @@ almalinux_repo_rsync_modules: {}
 almalinux_repo_rsyncd_max_connections: 1000
 
 # Fan-out trigger for tier0 mirror pulls. ALBS starts the
-# repo-alma-sync.service after pushing new content, and the script SSHes to
+# rsync-repo-alma.service after pushing new content, and the script SSHes to
 # each host in this list to touch a sync-requested flag and start the
 # mirror-pull service.
 almalinux_repo_sync_trigger_enabled: false

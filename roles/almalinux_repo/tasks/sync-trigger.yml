@@ -15,10 +15,10 @@
   tags:
     - sync_trigger
 
-- name: Install repo-alma-sync systemd unit
+- name: Install rsync-repo-alma.service systemd unit
   ansible.builtin.template:
-    src: repo-alma-sync.service.j2
-    dest: /etc/systemd/system/repo-alma-sync.service
+    src: rsync-repo-alma.service.j2
+    dest: /etc/systemd/system/rsync-repo-alma.service
     owner: root
     group: root
     mode: "0644"
