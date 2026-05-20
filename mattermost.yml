@@ -1,0 +1,10 @@
+---
+- name: Configure Mattermost
+  hosts: mattermost
+  roles:
+    - common
+    - geerlingguy.postgresql
+    - mattermost
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

@@ -1,0 +1,8 @@
+---
+- name: Write Cloudflare credentials file
+  ansible.builtin.template:
+    src: cloudflare.ini.j2
+    dest: /etc/letsencrypt/cloudflare.ini
+    mode: "0600"
+    owner: root
+    group: root

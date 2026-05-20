@@ -1,0 +1,100 @@
+---
+- name: Create mattermost group
+  ansible.builtin.group:
+    name: "{{ mattermost_group }}"
+    system: true
+
+- name: Create mattermost system user
+  ansible.builtin.user:
+    name: "{{ mattermost_user }}"
+    group: "{{ mattermost_group }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+    home: "{{ mattermost_install_dir }}"
+
+- name: Download mattermost tarball
+  ansible.builtin.get_url:
+    url: "https://releases.mattermost.com/{{ mattermost_version }}/mattermost-{{ mattermost_version }}-linux-{{ mattermost_arch }}.tar.gz"
+    dest: "/var/cache/mattermost-{{ mattermost_version }}-linux-{{ mattermost_arch }}.tar.gz"
+    mode: "0644"
+
+- name: Extract mattermost tarball
+  ansible.builtin.unarchive:
+    src: "/var/cache/mattermost-{{ mattermost_version }}-linux-{{ mattermost_arch }}.tar.gz"
+    dest: /opt/
+    remote_src: true
+    owner: "{{ mattermost_user }}"
+    group: "{{ mattermost_group }}"
+    creates: "{{ mattermost_install_dir }}/bin/mattermost"
+  notify: Restart mattermost
+
+- name: Create mattermost data directory
+  ansible.builtin.file:
+    path: "{{ mattermost_install_dir }}/data"
+    state: directory
+    owner: "{{ mattermost_user }}"
+    group: "{{ mattermost_group }}"
+    mode: "0750"
+
+- name: Ensure mattermost install tree ownership
+  ansible.builtin.file:
+    path: "{{ mattermost_install_dir }}"
+    state: directory
+    owner: "{{ mattermost_user }}"
+    group: "{{ mattermost_group }}"
+    recurse: true
+
+- name: Set SELinux context for mattermost binaries
+  community.general.sefcontext:
+    target: "{{ mattermost_install_dir }}/bin(/.*)?"
+    setype: bin_t
+    state: present
+  register: mattermost_sefcontext
+
+- name: Apply SELinux context to mattermost binaries # noqa no-handler no-changed-when
+  ansible.builtin.command: restorecon -irv {{ mattermost_install_dir }}/bin
+  when: mattermost_sefcontext.changed
+
+- name: Create /etc/mattermost
+  ansible.builtin.file:
+    path: /etc/mattermost
+    state: directory
+    owner: root
+    group: "{{ mattermost_group }}"
+    mode: "0750"
+
+- name: Write mattermost env file
+  ansible.builtin.template:
+    src: mattermost.env.j2
+    dest: /etc/mattermost/mattermost.env
+    owner: root
+    group: "{{ mattermost_group }}"
+    mode: "0640"
+  notify: Restart mattermost
+
+- name: Install mattermost systemd unit
+  ansible.builtin.template:
+    src: mattermost.service.j2
+    dest: /etc/systemd/system/mattermost.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart mattermost
+
+- name: Enable and start mattermost
+  ansible.builtin.systemd_service:
+    name: mattermost
+    state: started
+    enabled: true
+
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+
+- name: Nginx
+  ansible.builtin.include_tasks: nginx.yml
+
+- name: Obtain SSL certificate
+  ansible.builtin.include_tasks: certbot-obtain.yml

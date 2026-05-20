@@ -1,4 +1,27 @@
 ---
-host_public_ports:
-  # zabbix
-  - 10050/tcp
+staging: false
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}mattermost"
+
+firewalld_extra_allow_ports:
+  - "22/tcp"
+  - "80/tcp"
+  - "443/tcp"
+
+mattermost_hostname: chat.almalinux.org
+mattermost_support_email: infra-team@almalinux.org
+mattermost_db_password: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:database_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+
+postgresql_databases:
+  - name: "{{ mattermost_db_name }}"
+    owner: "{{ mattermost_db_user }}"
+    encoding: UTF-8
+
+postgresql_users:
+  - name: "{{ mattermost_db_user }}"
+    password: "{{ mattermost_db_password }}"
+    db: "{{ mattermost_db_name }}"
+
+mattermost_certbot_auth: dns_cloudflare
+mattermost_cloudflare_api_token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:cloudflare_api_token',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"

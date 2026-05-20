@@ -1,0 +1,29 @@
+---
+mattermost_version: 11.7.0
+mattermost_arch: amd64
+mattermost_install_dir: /opt/mattermost
+mattermost_user: mattermost
+mattermost_group: mattermost
+
+mattermost_hostname: "{{ inventory_hostname }}"
+mattermost_site_url: "https://{{ mattermost_hostname }}"
+mattermost_listen_port: 8065
+mattermost_client_max_body_size: 100M
+
+mattermost_db_name: mattermost
+mattermost_db_user: mmuser
+mattermost_db_host: localhost
+mattermost_db_port: 5432
+
+# Set in host_vars (typically via a Vault lookup)
+mattermost_db_password: ''
+mattermost_support_email: ''
+
+# Certbot authentication method: http | dns_route53 | dns_cloudflare
+mattermost_certbot_auth: http
+mattermost_cloudflare_propagation_seconds: 30
+
+# Only required when mattermost_certbot_auth is dns_route53 / dns_cloudflare
+mattermost_route53_access_key: ''
+mattermost_route53_secret_key: ''
+mattermost_cloudflare_api_token: ''
