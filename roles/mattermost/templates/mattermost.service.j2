@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Mattermost
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=notify
+WorkingDirectory={{ mattermost_install_dir }}
+User={{ mattermost_user }}
+Group={{ mattermost_group }}
+EnvironmentFile=/etc/mattermost/mattermost.env
+ExecStart={{ mattermost_install_dir }}/bin/mattermost
+TimeoutStartSec=3600
+KillMode=mixed
+Restart=always
+RestartSec=10
+LimitNOFILE=49152
+
+[Install]
+WantedBy=multi-user.target

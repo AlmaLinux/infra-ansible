@@ -1,0 +1,54 @@
+---
+- name: Check for existing certbot-managed certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ mattermost_hostname }}.conf
+  register: mattermost_certbot_renewal_check
+  tags: certbot
+
+- name: Remove placeholder certificate before certbot provisioning
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ mattermost_hostname }}
+    state: absent
+  when: not mattermost_certbot_renewal_check.stat.exists
+  tags: certbot
+
+- name: Obtain SSL certificate with certbot # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    {% if mattermost_certbot_auth == 'dns_route53' %}
+    --dns-route53
+    {% elif mattermost_certbot_auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ mattermost_cloudflare_propagation_seconds }}
+    {% else %}
+    --webroot -w /var/lib/letsencrypt
+    {% endif %}
+    --cert-name {{ mattermost_hostname }}
+    -d {{ mattermost_hostname }}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  when: not mattermost_certbot_renewal_check.stat.exists
+  register: mattermost_certbot_result
+  failed_when:
+    - mattermost_certbot_result.rc is defined
+    - mattermost_certbot_result.rc != 0
+    - mattermost_certbot_auth != 'http'
+  tags: certbot
+
+- name: Check for SSL certificate after obtainment
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ mattermost_hostname }}/fullchain.pem
+  register: mattermost_le_cert_check
+  tags: certbot
+
+- name: Update vhost config with real certificate paths
+  ansible.builtin.template:
+    src: nginx/mattermost.conf.j2
+    dest: /etc/nginx/conf.d/{{ mattermost_hostname }}.conf
+    mode: "0644"
+    owner: root
+    group: root
+  vars:
+    _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ mattermost_hostname if mattermost_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ mattermost_hostname }}"
+  notify: Reload nginx
+  tags: certbot
