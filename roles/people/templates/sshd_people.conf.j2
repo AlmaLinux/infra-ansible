@@ -1,0 +1,9 @@
+# Managed by the people role.
+# Members of the {{ people_local_group }} group authenticate only via the
+# central authorized_keys files written by this role; their own
+# ~/.ssh/authorized_keys is ignored so revocation can be enforced by removing
+# them from the IPA groups that gate this server.
+Match Group {{ people_local_group }}
+    AuthorizedKeysFile {{ people_authkeys_dir }}/%u
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no

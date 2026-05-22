@@ -1,0 +1,57 @@
+---
+# IPA LDAP source
+people_ipa_uri: ldaps://ipa01.awsuseast1.ipa.almalinux.org
+people_ipa_basedn: dc=almalinux,dc=org
+people_ipa_bind_dn: "uid={{ ipaadmin_principal }},cn=users,cn=accounts,{{ people_ipa_basedn }}"
+people_ipa_bind_pw: "{{ ipaadmin_password }}"
+people_ipa_validate_certs: false
+
+# IPA group gating. A user is synced only if they're in EVERY group in
+# people_ipa_required_groups AND in AT LEAST ONE of people_ipa_any_of_groups.
+# Leave people_ipa_any_of_groups empty to disable the "any-of" check.
+people_ipa_required_groups:
+  - members
+people_ipa_any_of_groups:
+  - almalinux_sigs
+
+# Local layout
+people_home_base: /home/almalinux
+people_local_group: people
+people_local_gid: 4000
+people_default_shell: /bin/bash
+
+# Web
+people_apex_domain: almapeople.org
+people_webroot: /srv/people/site
+
+# Certbot / TLS — DNS-01 challenge because we need a wildcard for *.{{ people_apex_domain }}.
+# Set to dns_cloudflare on hosts where DNS is in Cloudflare and provide
+# people_cloudflare_api_token (typically from hashivault).
+people_certbot_auth: dns_route53
+people_cloudflare_propagation_seconds: 60
+people_cert_name: "{{ people_apex_domain }}"
+people_cert_live_dir: "/etc/letsencrypt/live/{{ people_cert_name }}"
+
+# Where sshd reads the central authorized_keys files from
+people_authkeys_dir: /etc/ssh/authorized_keys.d
+
+# XFS quotas. The filesystem at people_quota_mount must be mounted with
+# uquota (and have grpquota disabled or compatible) for these to take effect.
+# Defaults apply to every user; overrides keyed by uid bump specific users.
+people_quota_mount: /home
+people_default_quota: 100g
+people_quota_overrides: {}
+  # jonathan: 500g
+  # ngompa:   250g
+
+# Per-user systemd resource caps (applied to every user-UID.slice).
+people_user_memory_high: 512M
+people_user_memory_max: 1G
+people_user_tasks_max: 64
+people_user_cpu_weight: 50
+
+# devsec.hardening.ssh_hardening's "Restart sshd" handler reads this and
+# does not always self-populate it depending on collection version; pin it
+# for AlmaLinux/RHEL where the service is just "sshd". This variable name
+# is fixed by the upstream role, so the role-prefix lint doesn't apply.
+sshd_service_name: sshd  # noqa: var-naming[no-role-prefix]

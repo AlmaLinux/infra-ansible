@@ -1,0 +1,115 @@
+---
+- name: Ensure Let's Encrypt directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: directory
+    mode: "0700"
+  tags: certbot
+
+- name: Verify Cloudflare API token is available
+  ansible.builtin.assert:
+    that:
+      - people_cloudflare_api_token is defined
+      - people_cloudflare_api_token | length > 0
+    fail_msg: >-
+      people_cloudflare_api_token is empty. Check that VAULT_TOKEN is exported
+      and that `cloudflare_api_token` exists at vault path
+      `{{ hashi_vault_path | default('(unset)') }}`.
+  when: people_certbot_auth == 'dns_cloudflare'
+  tags: certbot
+
+- name: Cloudflare credentials file
+  ansible.builtin.template:
+    src: cloudflare.ini.j2
+    dest: /etc/letsencrypt/cloudflare.ini
+    mode: "0600"
+    owner: root
+    group: root
+  when: people_certbot_auth == 'dns_cloudflare'
+  tags: certbot
+
+- name: Install certbot
+  ansible.builtin.package:
+    name:
+      - certbot
+    state: present
+  tags: certbot
+
+- name: Install certbot Route53 plugin
+  ansible.builtin.package:
+    name: python3-certbot-dns-route53
+    state: present
+  when: people_certbot_auth == 'dns_route53'
+  tags: certbot
+
+- name: Install certbot Cloudflare plugin
+  ansible.builtin.package:
+    name: python3-certbot-dns-cloudflare
+    state: present
+  when: people_certbot_auth == 'dns_cloudflare'
+  tags: certbot
+
+- name: Configure certbot deploy hook
+  ansible.builtin.template:
+    src: certbot-deploy-hook.sh.j2
+    dest: /etc/letsencrypt/deploy-httpd.sh
+    mode: "0755"
+  tags: certbot
+
+- name: Check for existing Let's Encrypt certificate
+  ansible.builtin.stat:
+    path: "{{ people_cert_live_dir }}/fullchain.pem"
+  register: people_certbot_cert_check
+  tags: certbot
+
+- name: Check for stale certbot renewal config
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/renewal/{{ people_cert_name }}.conf"
+  register: people_certbot_renewal_check
+  when: not people_certbot_cert_check.stat.exists
+  tags: certbot
+
+- name: Remove stale certbot state # noqa no-changed-when
+  ansible.builtin.command:
+    cmd: certbot delete --cert-name {{ people_cert_name }} -n
+  when:
+    - not people_certbot_cert_check.stat.exists
+    - people_certbot_renewal_check.stat is defined
+    - people_certbot_renewal_check.stat.exists
+  failed_when: false
+  tags: certbot
+
+- name: Obtain wildcard certificate via DNS-01 # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    {% if people_certbot_auth == 'dns_route53' %}
+    --dns-route53
+    {% elif people_certbot_auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ people_cloudflare_propagation_seconds }}
+    {% endif %}
+    --cert-name {{ people_cert_name }}
+    -d {{ people_apex_domain }}
+    -d *.{{ people_apex_domain }}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-httpd.sh
+  when: not people_certbot_cert_check.stat.exists
+  throttle: 1
+  tags: certbot
+
+- name: Update certbot renew hook for httpd
+  ansible.builtin.lineinfile:
+    path: "/etc/letsencrypt/renewal/{{ people_cert_name }}.conf"
+    regexp: '^renew_hook\s*='
+    line: 'renew_hook = /etc/letsencrypt/deploy-httpd.sh'
+    insertafter: '^\[renewalparams\]'
+  when: people_certbot_cert_check.stat.exists
+  failed_when: false
+  tags: certbot
+
+- name: Start/enable certbot renew timer
+  ansible.builtin.systemd_service:
+    name: certbot-renew.timer
+    enabled: true
+    state: started
+  tags: certbot

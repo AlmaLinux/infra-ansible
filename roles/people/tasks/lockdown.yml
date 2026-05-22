@@ -1,0 +1,43 @@
+---
+# Restrict cron and at to root (and any system users you list). Once these
+# files exist, the matching *.deny is ignored and only listed users can
+# schedule jobs.
+- name: Restrict cron to root
+  ansible.builtin.copy:
+    content: "root\n"
+    dest: /etc/cron.allow
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Restrict at to root
+  ansible.builtin.copy:
+    content: "root\n"
+    dest: /etc/at.allow
+    owner: root
+    group: root
+    mode: "0644"
+
+# Per-user systemd resource caps. `user-.slice` is a template slice; the
+# trailing `-` means the drop-in applies to every user-UID.slice instance.
+- name: Drop-in directory for user-.slice
+  ansible.builtin.file:
+    path: /etc/systemd/system/user-.slice.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Per-user systemd resource limits
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/user-.slice.d/50-people-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Slice]
+      MemoryHigh={{ people_user_memory_high }}
+      MemoryMax={{ people_user_memory_max }}
+      TasksMax={{ people_user_tasks_max }}
+      CPUWeight={{ people_user_cpu_weight }}
+  notify: Reload systemd

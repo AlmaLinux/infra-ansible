@@ -1,0 +1,41 @@
+---
+- name: Install landing page generator
+  ansible.builtin.copy:
+    src: make-almapeople-page.py
+    dest: /usr/local/bin/make-almapeople-page.py
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create static asset directory
+  ansible.builtin.file:
+    path: "{{ people_webroot }}/static"
+    state: directory
+    owner: apache
+    group: apache
+    mode: "0755"
+
+- name: Install AlmaLinux logo
+  ansible.builtin.copy:
+    src: almalinux-logo.svg
+    dest: "{{ people_webroot }}/static/almalinux-logo.svg"
+    owner: apache
+    group: apache
+    mode: "0644"
+
+- name: Install landing page cron
+  ansible.builtin.copy:
+    src: make-almapeople-page.cron
+    dest: /etc/cron.d/make-almapeople-page
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Generate the landing page once # noqa no-changed-when
+  ansible.builtin.command: >
+    /usr/local/bin/make-almapeople-page.py
+      --home-base {{ people_home_base }}
+      --domain {{ people_apex_domain }}
+      --out {{ people_webroot }}/index.html
+  become: true
+  become_user: apache

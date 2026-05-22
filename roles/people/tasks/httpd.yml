@@ -1,0 +1,72 @@
+---
+- name: Install httpd
+  ansible.builtin.package:
+    name:
+      - httpd
+      - mod_ssl
+    state: present
+
+- name: Ensure mod_vhost_alias is loaded
+  ansible.builtin.copy:
+    dest: /etc/httpd/conf.modules.d/00-vhost_alias.conf
+    content: "LoadModule vhost_alias_module modules/mod_vhost_alias.so\n"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart httpd
+
+- name: Empty default welcome.conf
+  ansible.builtin.copy:
+    dest: /etc/httpd/conf.d/welcome.conf
+    content: ""
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart httpd
+
+- name: Install people vhost
+  ansible.builtin.template:
+    src: people.conf.j2
+    dest: /etc/httpd/conf.d/people.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart httpd
+
+- name: Ensure webroot parent is traversable
+  ansible.builtin.file:
+    path: "{{ people_webroot | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create webroot (apache owns it so the landing-page cron can rewrite index.html)
+  ansible.builtin.file:
+    path: "{{ people_webroot }}"
+    state: directory
+    owner: apache
+    group: apache
+    mode: "0755"
+
+- name: SELinux booleans for user-served content
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    - httpd_enable_homedirs
+    - httpd_read_user_content
+
+- name: SELinux fcontext for webroot
+  community.general.sefcontext:
+    target: "{{ people_webroot }}(/.*)?"
+    setype: httpd_sys_content_t
+    state: present
+  notify: Apply SELinux context to webroot
+
+- name: Start and enable httpd
+  ansible.builtin.service:
+    name: httpd
+    state: started
+    enabled: true

@@ -1,0 +1,151 @@
+---
+# Build the IPA membership filter:
+#   (& posixAccount  <every required group memberOf>  (| <any-of memberOf>) )
+- name: Build LDAP membership filter
+  ansible.builtin.set_fact:
+    people_ldap_filter: >-
+      (&(objectClass=posixAccount){{ required_clauses }}{% if people_ipa_any_of_groups | length > 0 %}(|{{ anyof_clauses }}){% endif %})
+  vars:
+    groups_base: "cn=groups,cn=accounts,{{ people_ipa_basedn }}"
+    required_clauses: "{% for g in people_ipa_required_groups %}(memberOf=cn={{ g }},{{ groups_base }}){% endfor %}"
+    anyof_clauses: "{% for g in people_ipa_any_of_groups %}(memberOf=cn={{ g }},{{ groups_base }}){% endfor %}"
+  delegate_to: localhost
+  run_once: true
+
+# Pull the active member set from IPA. The query runs on the controller so the
+# target host itself never reaches IPA.
+- name: Query IPA for users gated by required/any-of groups
+  community.general.ldap_search:
+    server_uri: "{{ people_ipa_uri }}"
+    bind_dn: "{{ people_ipa_bind_dn }}"
+    bind_pw: "{{ people_ipa_bind_pw }}"
+    validate_certs: "{{ people_ipa_validate_certs }}"
+    dn: "cn=users,cn=accounts,{{ people_ipa_basedn }}"
+    scope: onelevel
+    filter: "{{ people_ldap_filter }}"
+    attrs:
+      - uid
+      - uidNumber
+      - gidNumber
+      - gecos
+      - loginShell
+      - ipaSshPubKey
+  register: people_ldap_result
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Normalize active user records
+  ansible.builtin.set_fact:
+    people_active_users: "{{ people_ldap_result.results }}"
+    people_active_uids: "{{ people_ldap_result.results | map(attribute='uid') | list }}"
+
+- name: Ensure local people group exists
+  ansible.builtin.group:
+    name: "{{ people_local_group }}"
+    gid: "{{ people_local_gid }}"
+    state: present
+
+- name: Ensure home base exists
+  ansible.builtin.file:
+    path: "{{ people_home_base }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Enumerate previously-provisioned accounts on this host
+  ansible.builtin.find:
+    paths: "{{ people_home_base }}"
+    file_type: directory
+    depth: 1
+  register: people_existing_homes
+
+- name: Build existing user list from {{ people_home_base }}
+  ansible.builtin.set_fact:
+    people_existing_users: >-
+      {{ people_existing_homes.files
+         | map(attribute='path')
+         | map('basename')
+         | list }}
+
+- name: Compute disabled user list (had an account, no longer in IPA group)
+  ansible.builtin.set_fact:
+    people_disabled_users: "{{ people_existing_users | difference(people_active_uids) }}"
+
+- name: Create/update local accounts for active users
+  ansible.builtin.user:
+    name: "{{ item.uid }}"
+    uid: "{{ item.uidNumber }}"
+    group: "{{ people_local_group }}"
+    comment: "{{ item.gecos | default(item.uid) }}"
+    home: "{{ people_home_base }}/{{ item.uid }}"
+    shell: "{{ item.loginShell | default(people_default_shell) }}"
+    create_home: true
+    state: present
+  loop: "{{ people_active_users }}"
+  loop_control:
+    label: "{{ item.uid }}"
+
+- name: Ensure central authorized_keys directory exists
+  ansible.builtin.file:
+    path: "{{ people_authkeys_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install authorized_keys for active users
+  ansible.builtin.copy:
+    content: "{{ [item.ipaSshPubKey | default([])] | flatten | join('\n') }}\n"
+    dest: "{{ people_authkeys_dir }}/{{ item.uid }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ people_active_users }}"
+  loop_control:
+    label: "{{ item.uid }}"
+
+- name: Remove authorized_keys for disabled users
+  ansible.builtin.file:
+    path: "{{ people_authkeys_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ people_disabled_users }}"
+
+# Re-enable any user whose public_html was previously parked under .disabled.
+- name: Check for parked public_html on active users
+  ansible.builtin.stat:
+    path: "{{ people_home_base }}/{{ item }}/public_html.disabled"
+  register: people_active_parked
+  loop: "{{ people_active_uids }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Restore public_html for re-enabled users
+  ansible.builtin.command:
+    cmd: mv "{{ people_home_base }}/{{ item.item }}/public_html.disabled" "{{ people_home_base }}/{{ item.item }}/public_html"
+    creates: "{{ people_home_base }}/{{ item.item }}/public_html"
+    removes: "{{ people_home_base }}/{{ item.item }}/public_html.disabled"
+  when: item.stat.exists
+  loop: "{{ people_active_parked.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# Park public_html on offboarded users so the subdomain 404s.
+- name: Check for live public_html on disabled users
+  ansible.builtin.stat:
+    path: "{{ people_home_base }}/{{ item }}/public_html"
+  register: people_disabled_live
+  loop: "{{ people_disabled_users }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Park public_html for disabled users
+  ansible.builtin.command:
+    cmd: mv "{{ people_home_base }}/{{ item.item }}/public_html" "{{ people_home_base }}/{{ item.item }}/public_html.disabled"
+    creates: "{{ people_home_base }}/{{ item.item }}/public_html.disabled"
+    removes: "{{ people_home_base }}/{{ item.item }}/public_html"
+  when: item.stat.exists and item.stat.isdir
+  loop: "{{ people_disabled_live.results }}"
+  loop_control:
+    label: "{{ item.item }}"

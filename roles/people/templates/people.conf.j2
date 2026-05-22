@@ -1,0 +1,59 @@
+# {{ ansible_managed }}
+
+# Redirect all plaintext traffic to HTTPS, preserving the original Host.
+<VirtualHost *:80>
+    ServerName {{ people_apex_domain }}
+    ServerAlias *.{{ people_apex_domain }}
+    RewriteEngine On
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</VirtualHost>
+
+# Apex / landing page.
+<VirtualHost *:443>
+    ServerName {{ people_apex_domain }}
+    DocumentRoot {{ people_webroot }}
+
+    SSLEngine on
+    SSLCertificateFile      {{ people_cert_live_dir }}/fullchain.pem
+    SSLCertificateKeyFile   {{ people_cert_live_dir }}/privkey.pem
+
+    <Directory {{ people_webroot }}>
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+    ErrorLog logs/people_apex_error_log
+    CustomLog logs/people_apex_access_log combined
+</VirtualHost>
+
+# Per-user subdomains: <user>.{{ people_apex_domain }} → {{ people_home_base }}/<user>/public_html
+# Disabled users have their public_html renamed to public_html.disabled, so
+# mod_vhost_alias can't resolve the path and the request 404s.
+<VirtualHost *:443>
+    ServerName users.{{ people_apex_domain }}
+    ServerAlias *.{{ people_apex_domain }}
+    UseCanonicalName Off
+    VirtualDocumentRoot {{ people_home_base }}/%1/public_html
+
+    SSLEngine on
+    SSLCertificateFile      {{ people_cert_live_dir }}/fullchain.pem
+    SSLCertificateKeyFile   {{ people_cert_live_dir }}/privkey.pem
+
+    <Directory "{{ people_home_base }}/*/public_html">
+        # Static content only. No CGI, no SSI, only safe symlinks.
+        Options Indexes SymLinksIfOwnerMatch
+        AllowOverride FileInfo AuthConfig Indexes
+        Require method GET POST OPTIONS
+
+        # Force any handler-based scripts (PHP, perl, etc.) to be served as
+        # static text. Belt-and-suspenders in case a handler module ever
+        # ends up installed on the box.
+        <FilesMatch "\.(php|phtml|php[0-9]+|cgi|pl|py|rb|asp|aspx|jsp)$">
+            SetHandler default-handler
+        </FilesMatch>
+    </Directory>
+
+    ErrorLog logs/people_users_error_log
+    CustomLog logs/people_users_access_log vhost_combined
+</VirtualHost>

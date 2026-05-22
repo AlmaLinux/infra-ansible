@@ -1,0 +1,32 @@
+---
+- name: Install xfsprogs (xfs_quota)
+  ansible.builtin.package:
+    name: xfsprogs
+    state: present
+
+- name: Check that XFS quotas are enabled on {{ people_quota_mount }}
+  ansible.builtin.command: xfs_quota -x -c 'state -u' {{ people_quota_mount }}
+  register: people_quota_state
+  changed_when: false
+  check_mode: false
+
+- name: Fail if user quotas are not enabled on the mount
+  ansible.builtin.fail:
+    msg: >-
+      User quotas are not enabled on {{ people_quota_mount }}. Add `uquota`
+      to the mount options in /etc/fstab and remount (or reboot) before
+      applying user quotas.
+  when: "'User quota state on' not in people_quota_state.stdout or 'Accounting: ON' not in people_quota_state.stdout"
+
+- name: Set default xfs quota on {{ people_quota_mount }} # noqa no-changed-when
+  ansible.builtin.command: >-
+    xfs_quota -x -c 'limit bsoft={{ people_default_quota }} bhard={{ people_default_quota }} -d' {{ people_quota_mount }}
+  check_mode: false
+
+- name: Apply per-user quota overrides # noqa no-changed-when
+  ansible.builtin.command: >-
+    xfs_quota -x -c 'limit bsoft={{ item.value }} bhard={{ item.value }} {{ item.key }}' {{ people_quota_mount }}
+  loop: "{{ people_quota_overrides | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} -> {{ item.value }}"
+  check_mode: false
