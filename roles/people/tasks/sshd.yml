@@ -1,0 +1,13 @@
+---
+- name: Install sshd drop-in for people group
+  ansible.builtin.template:
+    src: sshd_people.conf.j2
+    dest: /etc/ssh/sshd_config.d/40-people.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart sshd
+
+- name: Validate full sshd config
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false

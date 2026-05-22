@@ -1,0 +1,9 @@
+---
+- name: Configure people server
+  hosts: people
+  roles:
+    - common
+    - people
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

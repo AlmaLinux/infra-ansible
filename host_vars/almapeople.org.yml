@@ -1,0 +1,18 @@
+---
+staging: false
+
+firewalld_extra_allow_ports:
+  - "22/tcp"
+  - "80/tcp"
+  - "443/tcp"
+
+# Users need world-readable content for httpd to serve their public_html.
+# devsec.hardening's default umask of 027 yields 640/750 which httpd can't read.
+os_env_umask: "022"
+
+hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}people"
+
+# Use Cloudflare DNS-01 for the *.almapeople.org wildcard cert.
+people_certbot_auth: dns_cloudflare
+people_cloudflare_api_token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:cloudflare_api_token',
+        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"

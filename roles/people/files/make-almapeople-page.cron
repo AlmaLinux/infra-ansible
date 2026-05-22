@@ -1,0 +1,5 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+
+# Regenerate the almapeople.org landing page every hour.
+0 * * * * apache /usr/local/bin/make-almapeople-page.py

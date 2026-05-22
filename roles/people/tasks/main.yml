@@ -1,0 +1,43 @@
+---
+- name: Sync user accounts and authorized_keys from IPA
+  ansible.builtin.import_tasks: sync_users.yml
+  tags:
+    - people
+    - people-sync
+
+- name: Configure sshd drop-in for people group
+  ansible.builtin.import_tasks: sshd.yml
+  tags:
+    - people
+    - people-sshd
+
+- name: Apply per-user lockdown (cron/at, systemd limits)
+  ansible.builtin.import_tasks: lockdown.yml
+  tags:
+    - people
+    - people-lockdown
+
+- name: Apply XFS user quotas
+  ansible.builtin.import_tasks: quotas.yml
+  tags:
+    - people
+    - people-quotas
+
+- name: Obtain and renew the wildcard TLS certificate
+  ansible.builtin.import_tasks: certbot.yml
+  tags:
+    - people
+    - people-certbot
+    - certbot
+
+- name: Configure httpd vhosts
+  ansible.builtin.import_tasks: httpd.yml
+  tags:
+    - people
+    - people-httpd
+
+- name: Install and run the landing page generator
+  ansible.builtin.import_tasks: landing_page.yml
+  tags:
+    - people
+    - people-landing
