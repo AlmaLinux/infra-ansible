@@ -1,3 +1,5 @@
+ansible_python_interpreter: /usr/bin/python3
+
 # overridden in group/host vars for staging hosts
 staging: false
 
