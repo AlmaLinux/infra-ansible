@@ -26,6 +26,9 @@ mirror_rsync_modules:
   almalinux-vault:
     path: "{{ mirror_path }}/vault"
     comment: AlmaLinux vault (historical releases)
+  vault:
+    path: "{{ mirror_path }}/vault"
+    comment: AlmaLinux vault (historical releases) - legacy endpoint, use almalinux-vault instead
 mirror_tier0_deploy_user: deploy-repo-alma
 mirror_tier0_deploy_pubkey: "{{ lookup('community.hashi_vault.hashi_vault',
   'kv/data/infra/{% if staging %}stg/{% endif %}mirror_tier0:mirror_tier0_deploy_pubkey ',
@@ -85,7 +88,7 @@ mirror_pull_repo_catalog:
 #                                  | almalinux | kitten | epel | elevate | vault |
 #  --------------------------------+-----------+--------+------+---------+-------+
 #  atl.rsync.repo.almalinux.org    |     X     |   X    |  X   |    X    |   X   |
-#  sea.rsync.repo.almalinux.org    |     X     |   X    |  X   |    X    |   X   |
+#  sea.rsync.repo.almalinux.org    |     X     |   X    |  X   |    X    |       |
 # ---------------------------------------------------------------------------
 mirror_pull_repo_assignments:
   atl.rsync.repo.almalinux.org:
