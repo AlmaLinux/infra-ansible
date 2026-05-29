@@ -295,7 +295,6 @@
     src: rsyncd.conf.j2
     dest: /etc/rsyncd.conf
     mode: "0644"
-  notify: Restart rsyncd
   when: mirror_rsync_modules
 
 - name: Enable rsyncd
