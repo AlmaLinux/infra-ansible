@@ -12,3 +12,8 @@
 - name: Reload systemd
   ansible.builtin.systemd_service:
     daemon_reload: true
+
+- name: Restart mirror-mirage
+  ansible.builtin.systemd_service:
+    name: mirror-mirage.service
+    state: restarted

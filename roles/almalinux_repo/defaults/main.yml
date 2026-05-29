@@ -19,6 +19,29 @@ almalinux_repo_sync_trigger_hosts: "{{ groups['mirrors_tier0'] | default([]) }}"
 almalinux_repo_sync_trigger_flag: /var/lib/mirror-pull/sync-requested
 almalinux_repo_sync_trigger_service: mirror-pull.service
 
+# mirror-mirage: inotify-driven CDN purge daemon. Disabled by default —
+# enable per-host (e.g. on repo.almalinux.org) once config + secrets are
+# populated. Set _version to a tag (e.g. "v0.3.0") when pinning a release.
+almalinux_repo_mirror_mirage_enabled: false
+almalinux_repo_mirror_mirage_repo: https://github.com/AlmaLinux/mirror-mirage
+almalinux_repo_mirror_mirage_version: main
+almalinux_repo_mirror_mirage_src_dir: /opt/mirror-mirage/src
+almalinux_repo_mirror_mirage_venv_dir: /opt/mirror-mirage/venv
+almalinux_repo_mirror_mirage_python: python3.12
+
+# mirror-mirage: structured config rendered into /etc/mirror-mirage/config.yaml
+# via to_nice_yaml. Override per-host. Shape mirrors the upstream example
+# (cdns / watches / optional daemon block).
+almalinux_repo_mirror_mirage_config:
+  cdns: {}
+  watches: []
+
+# mirror-mirage: CDN credentials rendered into /etc/mirror-mirage/secrets.yaml
+# (mode 0600, owned by mirror-mirage). Top-level keys MUST match CDN names
+# in almalinux_repo_mirror_mirage_config.cdns. Populate per-host with Vault
+# lookups — never commit literal credentials to defaults.
+almalinux_repo_mirror_mirage_secrets: {}
+
 # inspiration from https://github.com/PhirePhly/micromirrors/blob/main/files/sysctl.performancetune.conf
 almalinux_repo_sysctl_performance:
   - name: net.core.default_qdisc

@@ -1,0 +1,5 @@
+---
+# {{ ansible_managed }}
+# Schema: https://github.com/AlmaLinux/mirror-mirage/blob/{{ almalinux_repo_mirror_mirage_version }}/packaging/config.example.yaml
+# Driven by `almalinux_repo_mirror_mirage_config` in host_vars.
+{{ almalinux_repo_mirror_mirage_config | to_nice_yaml(indent=2) }}

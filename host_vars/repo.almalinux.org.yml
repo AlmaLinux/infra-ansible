@@ -107,6 +107,84 @@ almalinux_repo_route53_secret_key: "{{ lookup('community.hashi_vault.hashi_vault
 almalinux_repo_cloudflare_api_token: "{{ lookup('community.hashi_vault.hashi_vault', '{{ hashi_vault_path }}:cloudflare_api_token',
         token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
 
+almalinux_repo_mirror_mirage_enabled: true
+# Non-secret config: CDN identifiers, watch paths, daemon tuning. Identifiers
+# like Fastly service_id are not credentials — fine to keep in plaintext here.
+almalinux_repo_mirror_mirage_config:
+  cdns:
+    fastly_repo:
+      type: fastly
+      service_id: TlFupKxqyHcdiQXvV5fdR2
+      purge_all_service_domains: true
+    fastly_vault:
+      type: fastly
+      service_id: 5BnJwxmxD6Y1qgqrtHHRf1
+      purge_all_service_domains: true
+    fastly_nvidia:
+      type: fastly
+      service_id: lDIF1NkIOYylrgNuiozCW1
+      purge_all_service_domains: true
+    cloudfront_repo:
+      type: cloudfront
+      distribution_id: E1XDCDTFHKUK9C
+    gcp_cdn_repo:
+      type: gcp_cdn
+      project: almalinux-infra-469421
+      url_map: gcp-repo-lb
+  watches:
+    - path: "{{ almalinux_repo_dir }}"
+      ignore:
+        - "**/.~tmp~/**"     # rsync --delete-delay --update-delay style temp files
+        - "**/.*.??????"     # rsync mktemp-style per-file temps
+      bindings:
+        - cdn: fastly_repo
+          url_prefix: https://repo.almalinux.org/
+        - cdn: cloudfront_repo
+          url_prefix: https://aws.repo.almalinux.org/
+        - cdn: gcp_cdn_repo
+          url_prefix: https://gcp.repo.almalinux.org/
+    - path: "{{ almalinux_repo_dir }}/vault"
+      ignore:
+        - "**/.~tmp~/**"     # rsync --delete-delay --update-delay style temp files
+        - "**/.*.??????"     # rsync mktemp-style per-file temps
+      bindings:
+        - cdn: fastly_vault
+          url_prefix: https://vault.almalinux.org/
+    - path: "{{ almalinux_repo_dir }}/almalinux-nvidia"
+      ignore:
+        - "**/.~tmp~/**"     # rsync --delete-delay --update-delay style temp files
+        - "**/.*.??????"     # rsync mktemp-style per-file temps
+      bindings:
+        - cdn: fastly_nvidia
+          url_prefix: https://nvidia.repo.almalinux.org/
+  # daemon: # optional — defaults come from the daemon itself
+  #   batch_quiet_window_seconds: 10
+  #   batch_max_size: 500
+  #   batch_max_age_seconds: 60
+
+# Credentials: top-level keys must match the CDN names in
+# almalinux_repo_mirror_mirage_config.cdns. Each value is a Vault lookup.
+# Vault keys live under the same hashi_vault_path used for other repo secrets.
+almalinux_repo_mirror_mirage_secrets:
+  fastly_repo:
+    api_token: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_fastly_api_token',
+            token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+  fastly_vault:
+    api_token: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_fastly_api_token',
+            token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+  fastly_nvidia:
+    api_token: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_fastly_api_token',
+            token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+  cloudfront_repo:
+    access_key_id: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_cloudfront_access_key_id',
+            token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+    secret_access_key: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_cloudfront_secret_access_key',
+            token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+  gcp_cdn_repo:
+    service_account_file: "/etc/mirror-mirage/gcp_cdn_repo.json"
+    service_account_file_contents: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_gcp_cdn_service_account_json',
+            token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"
+
 # almalinux_repo_certbot_default_auth: dns_route53
 
 almalinux_repo_vhosts:

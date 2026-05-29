@@ -79,3 +79,9 @@
   when: almalinux_repo_sync_trigger_enabled
   tags:
     - sync_trigger
+
+- name: Mirror-mirage CDN purge daemon
+  ansible.builtin.include_tasks: mirror-mirage.yml
+  when: almalinux_repo_mirror_mirage_enabled
+  tags:
+    - mirror_mirage
