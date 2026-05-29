@@ -1,0 +1,195 @@
+---
+# Deploy mirror-mirage: an inotify-driven CDN cache-purge daemon
+# (https://github.com/AlmaLinux/mirror-mirage). Installed into an isolated
+# venv at {{ almalinux_repo_mirror_mirage_venv_dir }} from a git clone at
+# {{ almalinux_repo_mirror_mirage_src_dir }}. Version is tracked by branch
+# (main) for now; pin to a tag via almalinux_repo_mirror_mirage_version when
+# cutting releases.
+
+- name: Install build/runtime prerequisites
+  ansible.builtin.dnf:
+    name:
+      - git
+      - "{{ almalinux_repo_mirror_mirage_python }}"
+      - "{{ almalinux_repo_mirror_mirage_python }}-pip"
+      - "{{ almalinux_repo_mirror_mirage_python }}-devel"
+      # Needed to build systemd-python (pulled in by the [journald] extra)
+      # from source: gcc + pkg-config for the build, systemd-devel for the
+      # libsystemd headers.
+      - gcc
+      - pkgconf-pkg-config
+      - systemd-devel
+    state: present
+  tags:
+    - mirror_mirage
+
+- name: Create mirror-mirage source parent dir
+  ansible.builtin.file:
+    path: "{{ almalinux_repo_mirror_mirage_src_dir | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - mirror_mirage
+
+- name: Clone mirror-mirage
+  ansible.builtin.git:
+    repo: "{{ almalinux_repo_mirror_mirage_repo }}"
+    dest: "{{ almalinux_repo_mirror_mirage_src_dir }}"
+    version: "{{ almalinux_repo_mirror_mirage_version }}"
+    # main is a moving branch — allow update. Pin a tag in host_vars to
+    # freeze. (When version is a tag, update is effectively a no-op.)
+    update: true
+  register: almalinux_repo_mirror_mirage_clone
+  notify: Restart mirror-mirage
+  tags:
+    - mirror_mirage
+
+- name: Install mirror-mirage into venv
+  ansible.builtin.pip:
+    name: "{{ almalinux_repo_mirror_mirage_src_dir }}[journald]"
+    state: "{{ 'latest' if almalinux_repo_mirror_mirage_clone.changed else 'present' }}"
+    virtualenv: "{{ almalinux_repo_mirror_mirage_venv_dir }}"
+    virtualenv_command: "{{ almalinux_repo_mirror_mirage_python }} -m venv"
+  notify: Restart mirror-mirage
+  tags:
+    - mirror_mirage
+
+- name: Install sysusers config
+  ansible.builtin.copy:
+    src: "{{ almalinux_repo_mirror_mirage_src_dir }}/packaging/mirror-mirage.sysusers"
+    dest: /usr/lib/sysusers.d/mirror-mirage.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  register: almalinux_repo_mirror_mirage_sysusers
+  tags:
+    - mirror_mirage
+
+- name: Apply sysusers # noqa no-handler
+  ansible.builtin.command: systemd-sysusers
+  when: almalinux_repo_mirror_mirage_sysusers.changed
+  changed_when: true
+  tags:
+    - mirror_mirage
+
+- name: Install tmpfiles config
+  ansible.builtin.copy:
+    src: "{{ almalinux_repo_mirror_mirage_src_dir }}/packaging/mirror-mirage.tmpfiles"
+    dest: /usr/lib/tmpfiles.d/mirror-mirage.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  register: almalinux_repo_mirror_mirage_tmpfiles
+  tags:
+    - mirror_mirage
+
+- name: Apply tmpfiles # noqa no-handler
+  ansible.builtin.command: systemd-tmpfiles --create
+  when: almalinux_repo_mirror_mirage_tmpfiles.changed
+  changed_when: true
+  tags:
+    - mirror_mirage
+
+- name: Install systemd unit
+  ansible.builtin.copy:
+    src: "{{ almalinux_repo_mirror_mirage_src_dir }}/packaging/mirror-mirage.service"
+    dest: /etc/systemd/system/mirror-mirage.service
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart mirror-mirage
+  tags:
+    - mirror_mirage
+
+- name: Create systemd drop-in dir
+  ansible.builtin.file:
+    path: /etc/systemd/system/mirror-mirage.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - mirror_mirage
+
+- name: Install systemd drop-in to point ExecStart at the venv
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/mirror-mirage.service.d/venv.conf
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart={{ almalinux_repo_mirror_mirage_venv_dir }}/bin/mirror-mirage --config /etc/mirror-mirage/config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart mirror-mirage
+  tags:
+    - mirror_mirage
+
+- name: Create config dir
+  ansible.builtin.file:
+    path: /etc/mirror-mirage
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - mirror_mirage
+
+- name: Write config.yaml
+  ansible.builtin.template:
+    src: mirror-mirage/config.yaml.j2
+    dest: /etc/mirror-mirage/config.yaml
+    owner: root
+    group: mirror-mirage
+    mode: "0640"
+  notify: Restart mirror-mirage
+  tags:
+    - mirror_mirage
+
+- name: Write secrets.yaml
+  ansible.builtin.template:
+    src: mirror-mirage/secrets.yaml.j2
+    dest: /etc/mirror-mirage/secrets.yaml
+    owner: mirror-mirage
+    group: mirror-mirage
+    mode: "0600"
+  notify: Restart mirror-mirage
+  no_log: true
+  tags:
+    - mirror_mirage
+
+# GCP CDN auth is a service-account JSON on disk, referenced by
+# service_account_file in secrets.yaml. Write one file per gcp_cdn CDN from the
+# service_account_file_contents carried alongside its path in the secrets dict.
+- name: Write GCP CDN service account files
+  ansible.builtin.copy:
+    content: "{{ almalinux_repo_mirror_mirage_secrets[item.key].service_account_file_contents }}"
+    dest: "{{ almalinux_repo_mirror_mirage_secrets[item.key].service_account_file }}"
+    owner: mirror-mirage
+    group: mirror-mirage
+    mode: "0600"
+  loop: "{{ almalinux_repo_mirror_mirage_config.cdns | dict2items
+            | selectattr('value.type', 'equalto', 'gcp_cdn') | list }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart mirror-mirage
+  no_log: true
+  tags:
+    - mirror_mirage
+
+- name: Enable and start mirror-mirage
+  ansible.builtin.systemd_service:
+    name: mirror-mirage.service
+    enabled: true
+    state: started
+  tags:
+    - mirror_mirage
