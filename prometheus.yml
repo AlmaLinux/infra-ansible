@@ -1,0 +1,10 @@
+---
+- name: Configure Prometheus
+  hosts: prometheus
+  become: true
+  roles:
+    - common
+    - prometheus
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

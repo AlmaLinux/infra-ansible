@@ -1,0 +1,5 @@
+---
+# Dev host: no public DNS for this name, and a remote Grafana scrapes :9090
+# directly. Exposes Prometheus on 0.0.0.0:9090 (firewall opened) and switches
+# Caddy to its internal CA so 443 serves a (self-signed) cert.
+prometheus_dev_mode: true
