@@ -15,8 +15,8 @@
 
 - name: Download prometheus tarball
   ansible.builtin.get_url:
-    url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
-    dest: "/var/cache/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
+    url: "{{ prometheus_download_url }}"
+    dest: "/var/cache/{{ prometheus_tarball }}"
     mode: "0644"
 
 - name: Create prometheus install dir
@@ -29,7 +29,7 @@
 
 - name: Extract prometheus tarball
   ansible.builtin.unarchive:
-    src: "/var/cache/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
+    src: "/var/cache/{{ prometheus_tarball }}"
     dest: "{{ prometheus_install_dir }}"
     remote_src: true
     owner: "{{ prometheus_user }}"

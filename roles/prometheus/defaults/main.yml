@@ -2,6 +2,8 @@
 # Upstream release from https://prometheus.io/download/ (GitHub release tarball).
 prometheus_version: 3.5.0
 prometheus_arch: amd64
+prometheus_tarball: "prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
+prometheus_download_url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/{{ prometheus_tarball }}"
 
 prometheus_user: prometheus
 prometheus_group: prometheus
