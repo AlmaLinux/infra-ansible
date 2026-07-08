@@ -174,6 +174,11 @@ matterbridge_channels:
     mattermost.almalinux: "almalinux-days"
     matrix.almalinux: "#almalinux-days:almalinux.im"
     discord.almalinux: ID:1524465486874673192
+  gateway-documentation:
+    irc.libera: "#almalinux-documentation"
+    mattermost.almalinux: "sigdocumentation"
+    matrix.almalinux: "#documentation:almalinux.im"
+    discord.almalinux: ID:842128733845979136
 
   redict:
     irc.libera: "#redict"
