@@ -10,6 +10,13 @@ firewalld_extra_allow_ports:
 # devsec.hardening's default umask of 027 yields 640/750 which httpd can't read.
 os_env_umask: "022"
 
+# os_env_umask only covers login sessions (pam_umask/login.defs). Uploads over
+# sftp — and scp, which speaks the SFTP protocol on OpenSSH 9+ — get their umask
+# from the `-u` flag on the sftp subsystem instead, which devsec.hardening
+# defaults to 0027. Left at the default, every uploaded file lands 0640 and
+# every directory 0750, so httpd returns 403.
+sftp_umask: "0022"
+
 hashi_vault_path: "kv/data/infra/{% if staging %}stg/{% endif %}people"
 
 # Use Cloudflare DNS-01 for the *.almapeople.org wildcard cert.
