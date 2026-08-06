@@ -1,0 +1,15 @@
+---
+- name: install db server {{ dbserver}}
+  ansible.builtin.dnf:
+    name:
+      - '{{ dbserver}}'
+      - '{{ dbclient }}'
+    state: latest
+
+- name: enable dbserver service
+  ansible.builtin.service:
+    name: '{{ dbserver_service }}'
+    enabled: true
+    state: started
+
+...

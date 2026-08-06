@@ -1,0 +1,39 @@
+- name: Install nginx web-server and all php needed
+  ansible.builtin.dnf:
+    name:
+      - '{{ webserver["package"] }}'
+    state: latest
+
+- name: Deploy module file for php version {{ matomo_php_version }}
+  ansible.builtin.template:
+    src: php.module.j2
+    dest: /etc/dnf/modules.d/php.module
+    backup: yes
+
+- name: install php execution environmet and all php package used by matomo
+  ansible.builtin.dnf:
+    name:
+      - php
+      - php-mysqlnd
+      - php-gd
+      - php-soap
+      - php-bcmath
+      - php-intl
+      - php-json
+      - php-zip
+    state: latest
+
+- name: enable web server service
+  ansible.builtin.service:
+    name: '{{ webserver["web_service_name"] }}'
+    enabled: true
+    state: started
+
+- name: enable firewalld rule
+  ansible.posix.firewalld:
+    service: '{{ item }}'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    '{{ webserver["web_service_ports"] }}'

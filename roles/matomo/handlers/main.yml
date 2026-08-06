@@ -1,0 +1,9 @@
+---
+# handlers file for ansible-role-matomo
+
+# https://github.com/nginxinc/ansible-role-nginx/blob/master/handlers/main.yml
+- name: "(Handler: All OSs) Reload NGINX"
+  service:
+    name: nginx
+    state: reloaded
+  become: true
