@@ -42,6 +42,12 @@ prometheus_scrape_configs:
     static_configs:
       - targets:
           - build.almalinux.org
+  - job_name: pulp
+    scheme: https
+    metrics_path: /pulp-metrics
+    static_configs:
+      - targets:
+          - build.almalinux.org
 
 # Front the web UI with Caddy (automatic HTTPS) + HTTP basic auth.
 prometheus_caddy_enabled: true
