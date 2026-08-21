@@ -1,0 +1,56 @@
+---
+# Upstream release from https://prometheus.io/download/ (GitHub release tarball).
+prometheus_version: 3.5.0
+prometheus_arch: amd64
+prometheus_tarball: "prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
+prometheus_download_url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/{{ prometheus_tarball }}"
+
+prometheus_user: prometheus
+prometheus_group: prometheus
+
+prometheus_install_dir: /opt/prometheus
+prometheus_config_dir: /etc/prometheus
+prometheus_data_dir: /var/lib/prometheus
+
+# Deployment mode.
+#  Production (default): Prometheus binds to localhost and is reachable only
+#    through Caddy on 443 with a real (Let's Encrypt) certificate. Requires the
+#    inventory hostname to resolve publicly to this host.
+#  Dev (prometheus_dev_mode: true): additionally exposes Prometheus directly on
+#    :9090 (binds 0.0.0.0 + opens the firewall port) so a remote Grafana can
+#    scrape without DNS, and Caddy uses its internal CA so 443 works without a
+#    public A record (self-signed — clients must skip verification).
+prometheus_dev_mode: false
+
+# Caddy always proxies to Prometheus via 127.0.0.1; dev mode also binds 0.0.0.0.
+prometheus_listen_address: "{{ '0.0.0.0' if prometheus_dev_mode | bool else '127.0.0.1' }}"
+prometheus_listen_port: 9090
+prometheus_external_url: "https://{{ inventory_hostname }}"
+
+# How long to keep samples on disk.
+prometheus_retention_time: 30d
+
+# Global scrape settings.
+prometheus_scrape_interval: 30s
+prometheus_evaluation_interval: 30s
+
+# Scrape jobs. The build.almalinux.org/metrics endpoint is the default target.
+prometheus_scrape_configs:
+  - job_name: almalinux-build
+    scheme: https
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - build.almalinux.org
+  - job_name: pulp
+    scheme: https
+    metrics_path: /pulp-metrics
+    static_configs:
+      - targets:
+          - build.almalinux.org
+
+# Front the web UI with Caddy (automatic HTTPS) + HTTP basic auth.
+prometheus_caddy_enabled: true
+# bcrypt hash from `caddy hash-password`; set in host_vars (typically a Vault lookup).
+prometheus_basicauth_user: admin
+prometheus_basicauth_hash: ''
