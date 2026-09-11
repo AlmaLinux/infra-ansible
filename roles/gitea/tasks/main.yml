@@ -10,9 +10,13 @@
 
 - name: Download gitea binary
   ansible.builtin.get_url:
-    url: https://dl.gitea.com/gitea/{{ gitea_version }}/gitea-{{ gitea_version }}-linux-amd64
+    url: "{{ _gitea_url }}"
+    checksum: "sha256:{{ _gitea_url }}.sha256"
     dest: /usr/local/bin/gitea
     mode: "0755"
+  vars:
+    _gitea_url: https://code.forgejo.org/forgejo/forgejo/releases/download/v{{ gitea_version }}/forgejo-{{ gitea_version }}-linux-amd64
+  notify: Restart Gitea
 
 - name: Create system user
   ansible.builtin.user:
