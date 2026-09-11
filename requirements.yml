@@ -16,4 +16,7 @@ roles:
       src: git+https://github.com/TerryHowe/ansible-modules-hashivault.git
     - name: geerlingguy.postgresql
     - name: geerlingguy.mysql
+      # 6.0.0 is the first release whose conditionals are boolean, as
+      # ansible >= 2.19 requires
+      version: 6.5.0
     - name: geerlingguy.php

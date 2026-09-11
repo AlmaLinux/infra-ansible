@@ -7,7 +7,9 @@
 
 - name: Configure freeipa client
   vars:
-    ipaclient_reinstall: "{{ lookup('env', 'IPACLIENT_REINSTALL') | default(false) }}" # noqa var-naming[no-role-prefix]
+    # `default(false)` does not replace the empty string an unset env var
+    # returns, and ansible >= 2.19 rejects a non-boolean conditional result
+    ipaclient_reinstall: "{{ lookup('env', 'IPACLIENT_REINSTALL') | bool }}" # noqa var-naming[no-role-prefix]
     state: present
   ansible.builtin.include_role:
     name: freeipa.ansible_freeipa.ipaclient
