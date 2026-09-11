@@ -2,3 +2,22 @@
 gitea_database: sqlite
 gitea_hostname: localhost.localdomain
 gitea_cache: ''
+
+# Backend gitea listens on; nginx proxies to it
+gitea_listen_address: 127.0.0.1
+gitea_listen_port: 3000
+
+# Extra names to include on the certificate / vhost
+gitea_extra_domains: []
+
+# Git pushes and LFS uploads can be large
+gitea_client_max_body_size: 512M
+
+# Certbot authentication method: http | dns_route53 | dns_cloudflare
+gitea_certbot_auth: http
+gitea_cloudflare_propagation_seconds: 30
+
+# Only required when gitea_certbot_auth is dns_route53 / dns_cloudflare
+gitea_route53_access_key: ''
+gitea_route53_secret_key: ''
+gitea_cloudflare_api_token: ''

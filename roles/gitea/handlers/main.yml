@@ -8,7 +8,12 @@
     name: gitea
     state: restarted
 
-- name: Restart caddy
+- name: Reload nginx
   ansible.builtin.systemd_service:
-    name: caddy.service
+    name: nginx.service
+    state: reloaded
+
+- name: Restart nginx
+  ansible.builtin.systemd_service:
+    name: nginx.service
     state: restarted
