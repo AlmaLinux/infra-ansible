@@ -1,0 +1,4 @@
+---
+# Force `tailscale up` to run even when the node is already connected, e.g. to
+# re-key a node or move it to a different tailnet
+tailscale_reauth: "{{ lookup('env', 'TAILSCALE_REAUTH') | bool }}"
