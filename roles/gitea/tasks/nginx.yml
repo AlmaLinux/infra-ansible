@@ -1,0 +1,87 @@
+---
+- name: Ensure Caddy is stopped and disabled
+  ansible.builtin.systemd_service:
+    name: caddy.service
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags:
+    - nginx
+
+- name: Remove Caddy configuration
+  ansible.builtin.file:
+    path: /etc/caddy/Caddyfile
+    state: absent
+  tags:
+    - nginx
+
+- name: Install nginx and brotli module
+  ansible.builtin.dnf:
+    name:
+      - nginx
+      - nginx-mod-brotli
+    state: present
+  tags:
+    - nginx
+
+- name: Gather package facts for nginx version check
+  ansible.builtin.package_facts:
+    manager: auto
+  tags:
+    - nginx
+
+- name: Allow nginx to proxy to backend (SELinux)
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
+  tags:
+    - nginx
+    - selinux
+
+- name: Distribute /etc/nginx/nginx.conf
+  ansible.builtin.template:
+    src: nginx/nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Check for Let's Encrypt certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ gitea_hostname }}/fullchain.pem
+  register: gitea_le_cert_check
+  tags:
+    - nginx
+
+- name: Distribute gitea vhost configuration
+  ansible.builtin.template:
+    src: nginx/gitea.conf.j2
+    dest: /etc/nginx/conf.d/{{ gitea_hostname }}.conf
+    mode: "0644"
+    owner: root
+    group: root
+  vars:
+    _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ gitea_hostname if gitea_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ gitea_hostname }}"
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Remove default nginx site configuration
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Start/enable nginx
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: started
+    enabled: true
+  tags:
+    - nginx

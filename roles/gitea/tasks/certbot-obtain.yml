@@ -1,0 +1,57 @@
+---
+- name: Check for existing certbot-managed certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ gitea_hostname }}.conf
+  register: gitea_certbot_renewal_check
+  tags: certbot
+
+- name: Remove placeholder certificate before certbot provisioning
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ gitea_hostname }}
+    state: absent
+  when: not gitea_certbot_renewal_check.stat.exists
+  tags: certbot
+
+- name: Obtain SSL certificate with certbot # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    {% if gitea_certbot_auth == 'dns_route53' %}
+    --dns-route53
+    {% elif gitea_certbot_auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ gitea_cloudflare_propagation_seconds }}
+    {% else %}
+    --webroot -w /var/lib/letsencrypt
+    {% endif %}
+    --cert-name {{ gitea_hostname }}
+    -d {{ gitea_hostname }}
+    {% for domain in gitea_extra_domains %}
+    -d {{ domain }}
+    {% endfor %}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  when: not gitea_certbot_renewal_check.stat.exists
+  register: gitea_certbot_result
+  failed_when:
+    - gitea_certbot_result.rc is defined
+    - gitea_certbot_result.rc != 0
+    - gitea_certbot_auth != 'http'
+  tags: certbot
+
+- name: Check for SSL certificate after obtainment
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ gitea_hostname }}/fullchain.pem
+  register: gitea_le_cert_check
+  tags: certbot
+
+- name: Update vhost config with real certificate paths
+  ansible.builtin.template:
+    src: nginx/gitea.conf.j2
+    dest: /etc/nginx/conf.d/{{ gitea_hostname }}.conf
+    mode: "0644"
+    owner: root
+    group: root
+  vars:
+    _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ gitea_hostname if gitea_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ gitea_hostname }}"
+  notify: Reload nginx
+  tags: certbot

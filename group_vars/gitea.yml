@@ -53,7 +53,8 @@ gitea_config:
       APP_DATA_PATH: /var/lib/gitea/data
       DOMAIN: "{{ gitea_hostname }}"
       SSH_DOMAIN: "{{ gitea_hostname }}"
-      HTTP_PORT: 3000
+      HTTP_ADDR: "{{ gitea_listen_address }}"
+      HTTP_PORT: "{{ gitea_listen_port }}"
       DISABLE_SSH: "false"
       SSH_PORT: 22
       SSH_LISTEN_PORT: 22

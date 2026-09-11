@@ -60,5 +60,11 @@
     state: started
     enabled: true
 
-- name: Configure caddy reverse proxy
-  ansible.builtin.include_tasks: caddy.yml
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+
+- name: Configure nginx reverse proxy
+  ansible.builtin.include_tasks: nginx.yml
+
+- name: Obtain SSL certificate
+  ansible.builtin.include_tasks: certbot-obtain.yml
