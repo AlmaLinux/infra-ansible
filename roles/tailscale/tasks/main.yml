@@ -1,0 +1,31 @@
+---
+# artis3n.tailscale re-runs `tailscale up --reset` whenever its state file
+# changes -- a new host, a different remote user or a changed login server is
+# enough -- which re-keys a node that is already on the tailnet.  Only bring
+# the node up if it isn't already connected.
+- name: Check if tailscale is already connected
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status_check
+  changed_when: false
+  failed_when: false
+
+- name: Record tailscale connection state
+  ansible.builtin.set_fact:
+    tailscale_connected:
+      "{{ tailscale_status_check.rc == 0 and (tailscale_status_check.stdout | from_json).Self.Online | default(false) }}"
+
+- name: Configure tailscale
+  vars:
+    tailscale_up_skip: "{{ tailscale_connected and not tailscale_reauth }}"
+  ansible.builtin.include_role:
+    name: artis3n.tailscale
+
+# artis3n.tailscale only registers these when it runs `tailscale up`, and
+# roles/keycloak builds its cluster IP list from them
+- name: Register tailscale node addresses
+  vars:
+    tailscale_ips: "{{ (tailscale_status_check.stdout | from_json).Self.TailscaleIPs | default([]) }}"
+  ansible.builtin.set_fact:
+    tailscale_node_ipv4: "{{ tailscale_ips | reject('contains', ':') | first | default('') }}"
+    tailscale_node_ipv6: "{{ tailscale_ips | select('contains', ':') | first | default('') }}"
+  when: tailscale_connected and not tailscale_reauth

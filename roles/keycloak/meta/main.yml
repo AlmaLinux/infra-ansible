@@ -1,6 +1,6 @@
 ---
 dependencies:
-  - role: artis3n.tailscale
+  - role: tailscale
 
 collections:
   - middleware_automation.keycloak
