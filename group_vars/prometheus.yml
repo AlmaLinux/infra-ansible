@@ -1,0 +1,9 @@
+---
+# Caddy needs 80/443 open for the web UI + automatic HTTPS (ACME).
+# 9090 is only opened in dev mode, for a remote Grafana to scrape directly.
+firewalld_extra_allow_ports: "{{ ['80/tcp', '443/tcp'] + (['9090/tcp'] if prometheus_dev_mode | bool else []) }}"
+
+# bcrypt hash for the Prometheus web UI basic auth (generate with `caddy hash-password`).
+prometheus_basicauth_hash:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/prometheus:basicauth_hash',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"

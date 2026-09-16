@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+
+{{ inventory_hostname }} {
+
+    reverse_proxy 127.0.0.1:{{ prometheus_listen_port }}
+
+{% if prometheus_dev_mode | bool %}
+    # Dev host without public DNS: use Caddy's internal CA (self-signed).
+    tls internal
+{% endif %}
+
+{% if prometheus_basicauth_hash | length > 0 %}
+    basic_auth {
+        {{ prometheus_basicauth_user }} {{ prometheus_basicauth_hash }}
+    }
+{% endif %}
+
+    log {
+        output file /var/log/caddy/{{ inventory_hostname }}.access.log {
+            roll_keep_for 30d
+        }
+    }
+
+}

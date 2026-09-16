@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Prometheus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Prometheus does not implement sd_notify; Type=notify would time out on start.
+Type=simple
+User={{ prometheus_user }}
+Group={{ prometheus_group }}
+ExecStart={{ prometheus_install_dir }}/prometheus \
+    --config.file={{ prometheus_config_dir }}/prometheus.yml \
+    --storage.tsdb.path={{ prometheus_data_dir }} \
+    --storage.tsdb.retention.time={{ prometheus_retention_time }} \
+    --web.listen-address={{ prometheus_listen_address }}:{{ prometheus_listen_port }} \
+    --web.external-url={{ prometheus_external_url }} \
+    --web.enable-lifecycle
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

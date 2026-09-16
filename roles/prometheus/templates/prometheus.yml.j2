@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_evaluation_interval }}
+
+scrape_configs:
+{{ prometheus_scrape_configs | to_nice_yaml(indent=2) | indent(2, true) }}
