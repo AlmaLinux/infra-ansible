@@ -1,0 +1,11 @@
+---
+- name: Configure lumina (catalog.almalinux.org)
+  hosts:
+    - lumina
+  roles:
+    - common
+    - geerlingguy.mysql
+    - lumina
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

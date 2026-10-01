@@ -1,0 +1,65 @@
+---
+# The management commands below run with lumina_env as their environment, the
+# same dict /etc/lumina.env is rendered from (roles/lumina/vars/main.yml).
+#
+# Not `. /etc/lumina.env` in a shell: lumina.settings.base reads os.environ and
+# nothing else, so these do need the full environment, but a vault secret is
+# arbitrary bytes and sourcing one containing `)` is a bash syntax error that
+# fails the deploy and prints the secret in the error. Passing the environment
+# directly also keeps every secret out of the command line, and so out of the
+# process table and any -v output.
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Migrate lumina
+  ansible.builtin.command:
+    cmd: "{{ lumina_venv }}/bin/python {{ lumina_app_dir }}/manage.py migrate --noinput"
+  environment: "{{ lumina_env }}"
+  # A handler runs only because something notified it; a migration with nothing
+  # to apply is not worth reporting differently from one that had work.
+  changed_when: true
+  become: true
+  become_user: "{{ lumina_user }}"
+
+- name: Configure lumina notifications
+  # Ordered after the migration on purpose: handlers run in the order they are
+  # written here, not the order they were notified, and this writes rows into
+  # tables the migration creates. No-ops when no webhook is configured, and
+  # prints no URL, so its output is safe in a log.
+  ansible.builtin.command:
+    cmd: "{{ lumina_venv }}/bin/python {{ lumina_app_dir }}/manage.py configure_notifications"
+  environment: "{{ lumina_env }}"
+  changed_when: true
+  become: true
+  become_user: "{{ lumina_user }}"
+
+- name: Collectstatic lumina
+  ansible.builtin.command:
+    cmd: "{{ lumina_venv }}/bin/python {{ lumina_app_dir }}/manage.py collectstatic --noinput"
+  environment: "{{ lumina_env }}"
+  changed_when: true
+  become: true
+  become_user: "{{ lumina_user }}"
+  notify: Restore lumina static context
+
+# collectstatic writes files as the app user under /var/lib, which inherits
+# var_lib_t; nginx serves them from /static/ and needs httpd_sys_content_t.
+- name: Restore lumina static context
+  ansible.builtin.command: restorecon -irF {{ lumina_static_root }}
+  changed_when: true
+
+- name: Restart lumina
+  ansible.builtin.systemd_service:
+    name: lumina.service
+    state: restarted
+
+- name: Reload nginx
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: reloaded
+
+- name: Restart nginx
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: restarted

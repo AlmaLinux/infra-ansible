@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Publish embargoed Lumina certification runs whose date has arrived
+After=network.target
+
+[Service]
+Type=oneshot
+User={{ lumina_user }}
+Group={{ lumina_group }}
+EnvironmentFile=/etc/lumina.env
+WorkingDirectory={{ lumina_app_dir }}
+ExecStart={{ lumina_venv }}/bin/python manage.py publish_embargoed_runs

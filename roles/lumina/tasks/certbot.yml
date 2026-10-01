@@ -1,0 +1,112 @@
+---
+- name: Route53 tasks
+  ansible.builtin.include_tasks: route53.yml
+  when: lumina_certbot_auth == 'dns_route53'
+  tags: certbot
+
+- name: Install certbot
+  ansible.builtin.package:
+    name:
+      - certbot
+    state: present
+  tags: certbot
+
+- name: Install certbot Route53 plugin
+  ansible.builtin.package:
+    name:
+      - python3-certbot-dns-route53
+    state: present
+  when: lumina_certbot_auth == 'dns_route53'
+  tags: certbot
+
+- name: Install certbot Cloudflare plugin
+  ansible.builtin.package:
+    name:
+      - python3-certbot-dns-cloudflare
+    state: present
+  when: lumina_certbot_auth == 'dns_cloudflare'
+  tags: certbot
+
+- name: Ensure Let's Encrypt directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: directory
+    mode: "0700"
+  tags: certbot
+
+- name: Cloudflare credentials
+  ansible.builtin.include_tasks: cloudflare.yml
+  when: lumina_certbot_auth == 'dns_cloudflare'
+  tags: certbot
+
+- name: Create ACME webroot directory
+  ansible.builtin.file:
+    path: /var/lib/letsencrypt/.well-known/acme-challenge
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  tags: certbot
+
+- name: Start/enable certbot renew timer
+  ansible.builtin.systemd_service:
+    name: certbot-renew.timer
+    state: started
+    enabled: true
+  tags: certbot
+
+- name: Configure certbot deploy hook
+  ansible.builtin.template:
+    src: certbot-deploy-hook.sh.j2
+    dest: /etc/letsencrypt/deploy-nginx.sh
+    mode: "0755"
+  tags: certbot
+
+- name: Create self-signed certificate directory
+  ansible.builtin.file:
+    path: /etc/pki/nginx/{{ lumina_hostname }}
+    state: directory
+    mode: "0700"
+  tags: certbot
+
+- name: Generate self-signed certificate for initial nginx startup # noqa no-changed-when
+  # nginx will not start on a TLS vhost whose certificate is missing, and
+  # certbot's http-01 challenge needs nginx up, so the first deploy serves this
+  # until there is a real one.
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -days 365 -newkey rsa:2048
+      -keyout /etc/pki/nginx/{{ lumina_hostname }}/privkey.pem
+      -out /etc/pki/nginx/{{ lumina_hostname }}/fullchain.pem
+      -subj '/CN={{ lumina_hostname }}'
+    creates: /etc/pki/nginx/{{ lumina_hostname }}/fullchain.pem
+  tags: certbot
+
+- name: Check for existing certbot renewal config (DNS pre-fetch)
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ lumina_hostname }}.conf
+  register: lumina_certbot_dns_check
+  tags: certbot
+
+- name: Obtain DNS-auth certificate before nginx startup # noqa no-changed-when
+  # DNS validation needs nothing listening, so it can run before nginx exists.
+  # http-01 cannot, and is done in certbot-obtain.yml once nginx is serving.
+  ansible.builtin.shell: >
+    certbot certonly
+    {% if lumina_certbot_auth == 'dns_route53' %}
+    --dns-route53
+    {% elif lumina_certbot_auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ lumina_cloudflare_propagation_seconds }}
+    {% endif %}
+    --cert-name {{ lumina_hostname }}
+    -d {{ lumina_hostname }}
+    {% for domain in lumina_extra_domains %}
+    -d {{ domain }}
+    {% endfor %}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  when:
+    - not lumina_certbot_dns_check.stat.exists
+    - lumina_certbot_auth != 'http'
+  tags: certbot

@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Rebuild Lumina survey statistics daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

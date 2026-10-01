@@ -1,0 +1,23 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Recompute Lumina survey aggregates for the current month
+After=network.target
+
+[Service]
+Type=oneshot
+User={{ lumina_user }}
+Group={{ lumina_group }}
+EnvironmentFile=/etc/lumina.env
+WorkingDirectory={{ lumina_app_dir }}
+RuntimeDirectory=lumina-rollup
+RuntimeDirectoryPreserve=yes
+# --current rather than a shell computing the month: the period a submission
+# falls in is decided in the project's timezone, and `date -u` in a unit file
+# would disagree either side of a month boundary.
+#
+# flock is shared with the nightly full rebuild: both delete and recreate a
+# period's rows. -n skips rather than queues, which is right for a refresher
+# that runs again in an hour. -E 0 makes a skipped run exit 0, so a lock
+# conflict is a success while a genuinely broken rollup still fails the unit.
+ExecStart=/usr/bin/flock -E 0 -n /run/lumina-rollup/survey-rollup.lock \
+    {{ lumina_venv }}/bin/python manage.py survey_rollup --current

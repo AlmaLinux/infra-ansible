@@ -1,0 +1,60 @@
+---
+- name: Check for existing certbot-managed certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ lumina_hostname }}.conf
+  register: lumina_certbot_renewal_check
+  tags: certbot
+
+- name: Remove placeholder certificate before certbot provisioning
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ lumina_hostname }}
+    state: absent
+  when: not lumina_certbot_renewal_check.stat.exists
+  tags: certbot
+
+- name: Obtain SSL certificate with certbot # noqa no-changed-when
+  ansible.builtin.shell: >
+    certbot certonly
+    {% if lumina_certbot_auth == 'dns_route53' %}
+    --dns-route53
+    {% elif lumina_certbot_auth == 'dns_cloudflare' %}
+    --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+    --dns-cloudflare-propagation-seconds {{ lumina_cloudflare_propagation_seconds }}
+    {% else %}
+    --webroot -w /var/lib/letsencrypt
+    {% endif %}
+    --cert-name {{ lumina_hostname }}
+    -d {{ lumina_hostname }}
+    {% for domain in lumina_extra_domains %}
+    -d {{ domain }}
+    {% endfor %}
+    -m {{ certbot_email }} --agree-tos -n
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh
+  when: not lumina_certbot_renewal_check.stat.exists
+  register: lumina_certbot_result
+  # http-01 fails on a host DNS does not point at yet, and that must not fail
+  # the deploy: the site stays up on the self-signed certificate and the next
+  # run picks the real one up.
+  failed_when:
+    - lumina_certbot_result.rc is defined
+    - lumina_certbot_result.rc != 0
+    - lumina_certbot_auth != 'http'
+  tags: certbot
+
+- name: Check for SSL certificate after obtainment
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ lumina_hostname }}/fullchain.pem
+  register: lumina_le_cert_check
+  tags: certbot
+
+- name: Update vhost config with real certificate paths
+  ansible.builtin.template:
+    src: nginx/lumina.conf.j2
+    dest: /etc/nginx/conf.d/{{ lumina_hostname }}.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ lumina_hostname if lumina_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ lumina_hostname }}"
+  notify: Reload nginx
+  tags: certbot

@@ -107,3 +107,6 @@ astra.almalinux.org
 
 [people]
 almapeople.org
+
+[lumina]
+catalog.almalinux.org ansible_host=3.226.62.20

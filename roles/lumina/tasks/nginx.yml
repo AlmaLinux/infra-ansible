@@ -1,0 +1,71 @@
+---
+- name: Install nginx and brotli module
+  ansible.builtin.dnf:
+    name:
+      - nginx
+      - nginx-mod-brotli
+    state: present
+  tags:
+    - nginx
+
+- name: Gather package facts for nginx version check
+  ansible.builtin.package_facts:
+    manager: auto
+  tags:
+    - nginx
+
+- name: Allow nginx to proxy to gunicorn (SELinux)
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
+  tags:
+    - nginx
+    - selinux
+
+- name: Distribute /etc/nginx/nginx.conf
+  ansible.builtin.template:
+    src: nginx/nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Check for Let's Encrypt certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ lumina_hostname }}/fullchain.pem
+  register: lumina_le_cert_check
+  tags:
+    - nginx
+
+- name: Distribute lumina vhost configuration
+  ansible.builtin.template:
+    src: nginx/lumina.conf.j2
+    dest: /etc/nginx/conf.d/{{ lumina_hostname }}.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _ssl_cert_path: "{{ '/etc/letsencrypt/live/' ~ lumina_hostname if lumina_le_cert_check.stat.exists else '/etc/pki/nginx/' ~ lumina_hostname }}"
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Remove default nginx site configuration
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+  notify: Reload nginx
+  tags:
+    - nginx
+
+- name: Start/enable nginx
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: started
+    enabled: true
+  tags:
+    - nginx
