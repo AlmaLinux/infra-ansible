@@ -1,0 +1,101 @@
+# {{ ansible_managed }}
+# Virtual host: {{ lumina_hostname }}
+
+{% set all_server_names = [lumina_hostname] + lumina_extra_domains %}
+upstream lumina_backend {
+    server {{ lumina_listen_address }}:{{ lumina_listen_port }};
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ all_server_names | join(' ') }};
+
+    # Above the redirect on purpose: a port 80 block that redirects everything
+    # breaks http-01 renewal ninety days later.
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+{% if ansible_facts.packages['nginx'][0]['version'] is version('1.25.1', '>=') %}
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+{% else %}
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+{% endif %}
+    server_name {{ all_server_names | join(' ') }};
+
+    ssl_certificate {{ _ssl_cert_path }}/fullchain.pem;
+    ssl_certificate_key {{ _ssl_cert_path }}/privkey.pem;
+
+    # Must be >= LUMINA_BUNDLE_MAX_BYTES so alma-certify bundles reach Django's
+    # own size gate instead of dying at the proxy with an opaque 413.
+    client_max_body_size {{ lumina_max_bundle_mb }}M;
+
+    access_log /var/log/nginx/{{ lumina_hostname }}.access.log;
+
+    location /static/ {
+        alias {{ lumina_static_root }}/;
+        expires 7d;
+    }
+
+    # Submission evidence: NOT public. `internal` means nginx serves this prefix
+    # only in response to an X-Accel-Redirect from the app, so asking for the
+    # path directly is a 404 however the client learned about it. The
+    # authorizing view is submit:attachment (submitter and reviewers only).
+    # Must stay above /media/ - nginx picks the longest matching prefix.
+    location /media/test-results/ {
+        internal;
+        alias {{ lumina_media_root }}/test-results/;
+        # No Content-Disposition here: the view sets one carrying the real
+        # filename and nginx forwards it, and a second bare "attachment" makes
+        # two differing headers, which Firefox rejects outright.
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # Result bundles and their extracted artifacts: also NOT public. Bundles
+    # hold the full report.json, and the dmidecode/lspci artifacts carry system
+    # serials and the SMBIOS UUID. Authorized by results:download_bundle and
+    # results:download_artifact through the same X-Accel handoff.
+    location /media/test-runs/ {
+        internal;
+        alias {{ lumina_media_root }}/test-runs/;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location /media/ {
+        alias {{ lumina_media_root }}/;
+        expires 7d;
+
+        # Everything under here is user-uploaded and served from the app's own
+        # origin, so without these an uploaded .html or .svg is stored XSS
+        # aimed at reviewers. Download, never render.
+        add_header Content-Disposition "attachment" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+    }
+
+    location / {
+        proxy_pass http://lumina_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+        # Bundle uploads are streamed straight through rather than spooled
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+}

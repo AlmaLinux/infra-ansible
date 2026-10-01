@@ -1,0 +1,81 @@
+---
+firewalld_extra_allow_ports:
+  - "22/tcp"
+  - "80/tcp"
+  - "443/tcp"
+
+lumina_hostname: catalog.almalinux.org
+# Pin to tag in the future
+lumina_version: main
+
+lumina_secret_key:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:django_secret_key',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+
+lumina_allow_indexing: true
+
+# Database: the server is geerlingguy.mysql's, the credentials are the app's.
+# That role defaults mysql_hide_passwords to false, which prints the root
+# password and every user password in the task output of an ordinary run.
+mysql_hide_passwords: true
+mysql_root_password:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:mysql_root_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+mysql_databases:
+  - name: lumina
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+mysql_users:
+  - name: lumina
+    host: 127.0.0.1
+    password:
+      "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:mysql_lumina_user_password',
+      token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+    priv: lumina.*:ALL
+mysql_bind_address: '127.0.0.1'
+mysql_innodb_buffer_pool_size: "2G"
+mysql_innodb_log_file_size: "512M"
+mysql_innodb_log_buffer_size: "128M"
+mysql_query_cache_size: "0"
+mysql_key_buffer_size: "0"
+
+lumina_db_password:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:mysql_lumina_user_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+
+# Keycloak. The client secret belongs to the `lumina` client in the almalinux
+# realm; the group map replaces the one shipped in the app's settings, so every
+# group that grants anything has to be named here.
+lumina_oidc_issuer: https://id.almalinux.org/realms/master
+lumina_oidc_client_id: lumina
+lumina_oidc_client_secret:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:oidc_client_secret',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+lumina_oidc_group_map: lumina-admins=admin,lumina-reviewers=reviewer
+
+# Mail via SES. NOTE: lumina's settings do not read EMAIL_HOST_USER/PASSWORD
+# yet (see roles/lumina/defaults/main.yml); until a release does, mail from
+# this host will not authenticate and reviewer notifications stay in the outbox.
+lumina_email_host: email-smtp.us-east-1.amazonaws.com
+lumina_email_port: 587
+lumina_email_use_tls: true
+lumina_email_host_user:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:ses_smtp_user',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+lumina_email_host_password:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:ses_smtp_password',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+lumina_default_from_email: no-reply@catalog.almalinux.org
+# Who gets told that a run is waiting for review. Comma-separated.
+lumina_review_notify_emails: ''
+
+# Pseudonymizes survey submitters. Must be a long random secret: an empty value
+# falls back to SECRET_KEY, and changing it orphans every existing identity.
+lumina_survey_identity_pepper:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:survey_identity_pepper',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+
+lumina_sentry_dsn:
+  "{{ lookup('community.hashi_vault.hashi_vault', 'kv/data/infra/lumina:sentry_dsn',
+  token=lookup('env', 'VAULT_TOKEN'), url=secrets_url) }}"
+lumina_sentry_environment: production

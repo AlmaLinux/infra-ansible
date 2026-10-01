@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Rebuild Lumina survey statistics for the current month, hourly
+
+[Timer]
+# Seven minutes past, not on the hour: the nightly full rebuild starts at 00:00
+# and starting both in the same second is the one case where they contend.
+OnCalendar=*-*-* *:07:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

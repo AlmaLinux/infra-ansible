@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+{{ lumina_log_dir }}/*.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 {{ lumina_user }} {{ lumina_group }}
+    # gunicorn holds its log files open, so it has to be told to reopen them
+    # after the rotation; without this it keeps writing to the rotated inode
+    # and the new file stays empty forever.
+    postrotate
+        /usr/bin/systemctl kill -s USR1 lumina.service >/dev/null 2>&1 || true
+    endscript
+}

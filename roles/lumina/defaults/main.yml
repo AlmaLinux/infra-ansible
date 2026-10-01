@@ -1,0 +1,120 @@
+---
+# Public hostname: nginx vhost, TLS certificate, ALLOWED_HOSTS and the base
+# URL used for links in notification emails and webhooks.
+lumina_hostname: localhost.localdomain
+# Extra names to include on the certificate / vhost / ALLOWED_HOSTS
+lumina_extra_domains: []
+
+# Source. Pin to a tag in production to make a deploy reproducible; rolling
+# back is then setting this to the previous tag and re-running.
+lumina_repo: https://github.com/AlmaLinux/lumina.git
+lumina_version: main
+
+# Layout on disk
+lumina_user: lumina
+lumina_group: lumina
+lumina_home: /opt/lumina
+lumina_app_dir: "{{ lumina_home }}/app"
+lumina_venv: "{{ lumina_home }}/venv"
+lumina_media_root: /var/lib/lumina/media
+lumina_static_root: /var/lib/lumina/static
+lumina_log_dir: /var/log/lumina
+# The app requires >= 3.12; EL9's system python is 3.9, so the venv is built
+# from the versioned interpreter rather than /usr/bin/python3.
+lumina_python: /usr/bin/python3.12
+
+# Backend gunicorn listens on; nginx proxies to it
+lumina_listen_address: 127.0.0.1
+lumina_listen_port: 8001
+lumina_gunicorn_workers: 4
+lumina_gunicorn_timeout: 60
+
+# Django
+lumina_settings_module: lumina.settings.prod
+lumina_debug: false
+lumina_allowed_hosts: "{{ ([lumina_hostname] + lumina_extra_domains) | join(',') }}"
+lumina_site_base_url: "https://{{ lumina_hostname }}"
+lumina_secret_key: ''
+# Whether search engines may index this deployment. Off by default so a second
+# deployment from this role never competes with the real site for its queries.
+lumina_allow_indexing: false
+
+# Database. The server itself is geerlingguy.mysql's job (see lumina.yml); this
+# is only how the app reaches it.
+lumina_db_name: lumina
+lumina_db_user: lumina
+lumina_db_password: ''
+lumina_db_host: 127.0.0.1
+lumina_db_port: 3306
+
+# Valkey, installed locally by this role. Sessions live here, so flushing it
+# signs everybody out.
+lumina_valkey_url: redis://127.0.0.1:6379/0
+
+# Mail.
+#
+# NOTE: lumina's settings currently read only EMAIL_HOST/EMAIL_PORT - there is
+# no EMAIL_HOST_USER/EMAIL_HOST_PASSWORD/EMAIL_USE_TLS support, so an
+# authenticated relay (SES) needs that added upstream first. The role writes the
+# variables below regardless: once a release reads them, a redeploy is all that
+# is needed. Until then leave the user/password empty and point EMAIL_HOST at
+# something that accepts this host without credentials.
+lumina_email_host: localhost
+lumina_email_port: 25
+lumina_email_host_user: ''
+lumina_email_host_password: ''
+lumina_email_use_tls: true
+lumina_email_backend: ''
+lumina_default_from_email: "lumina@{{ lumina_hostname }}"
+lumina_review_notify_emails: ''  # comma-separated
+
+# Notifications, delivered out of band by the deliver_notifications timer
+lumina_notifications_enabled: true
+lumina_notify_disabled_events: ''  # comma-separated event keys to silence
+lumina_webhook_timeout_seconds: 10
+lumina_notify_max_attempts: 5
+# A Mattermost incoming webhook this deployment owns. Endpoints are database
+# rows, so a restored-from-scratch database loses them; setting this is what
+# brings chat notifications back by itself. The URL is the credential - keep it
+# in vault. Blank configures nothing and leaves admin-created endpoints alone.
+lumina_mattermost_webhook_url: ''
+lumina_mattermost_channel: ''
+
+# OIDC (Keycloak). Endpoints are derived from the issuer.
+lumina_oidc_client_id: ''
+lumina_oidc_client_secret: ''
+lumina_oidc_issuer: ''  # e.g. https://id.almalinux.org/realms/almalinux
+# Only set when the realm has a client scope of that name assigned to the
+# client; Keycloak rejects the whole sign-in with invalid_scope otherwise.
+lumina_oidc_scopes: ''
+# Keycloak group -> Django group, comma-separated `keycloak-group=django-group`.
+# REPLACES the map shipped in lumina/settings/base.py rather than adding to it.
+# Django groups that mean something: admin, reviewer, certifier.
+lumina_oidc_group_map: ''
+# Whether membership of a group nested inside a mapped group counts as
+# membership of the parent (how FreeIPA groups reach Keycloak groups).
+lumina_oidc_group_nested_parents: true
+
+# Hardware survey. The pepper must be a long random secret in production; an
+# empty value falls back to SECRET_KEY, which is acceptable only in dev.
+lumina_survey_enabled: true
+lumina_survey_identity_pepper: ''
+lumina_survey_max_token_ttl_seconds: 31622400  # 366 days
+
+# Sentry. Blank DSN disables it entirely.
+lumina_sentry_dsn: ''
+lumina_sentry_environment: production
+lumina_sentry_traces_sample_rate: '0.0'
+
+# Result bundle uploads. Must be >= LUMINA_BUNDLE_MAX_BYTES (256M by default),
+# so a bundle hits Django's own size check instead of an opaque 413 at nginx.
+lumina_max_bundle_mb: 256
+
+# Certbot authentication method: http | dns_route53 | dns_cloudflare
+lumina_certbot_auth: http
+lumina_cloudflare_propagation_seconds: 30
+
+# Only required when lumina_certbot_auth is dns_route53 / dns_cloudflare
+lumina_route53_access_key: ''
+lumina_route53_secret_key: ''
+lumina_cloudflare_api_token: ''

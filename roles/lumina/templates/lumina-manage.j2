@@ -1,0 +1,24 @@
+#!/bin/sh
+# {{ ansible_managed }}
+#
+# Run a Django management command with exactly the environment lumina.service
+# runs with:
+#
+#     lumina-manage migrate
+#     lumina-manage seed_certified_systems --dry-run
+#     lumina-manage createsuperuser
+#
+# systemd-run rather than a shell reading /etc/lumina.env, because that file is
+# in systemd's EnvironmentFile format: `. /etc/lumina.env` would expand a $ or a
+# backtick inside a password, and choke on other characters outright. This hands
+# the file to the same parser the service uses, so a command run by hand sees
+# what the service sees. --pipe keeps stdin, so prompts still work.
+#
+# Needs root (it asks systemd to run something as {{ lumina_user }}).
+exec systemd-run --quiet --wait --pipe --collect \
+    --description="lumina manage.py $*" \
+    -p User={{ lumina_user }} \
+    -p Group={{ lumina_group }} \
+    -p EnvironmentFile=/etc/lumina.env \
+    -p WorkingDirectory={{ lumina_app_dir }} \
+    {{ lumina_venv }}/bin/python {{ lumina_app_dir }}/manage.py "$@"

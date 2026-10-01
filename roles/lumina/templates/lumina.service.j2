@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Lumina hardware certification catalog (gunicorn)
+After=network-online.target mariadb.service valkey.service
+Wants=network-online.target
+
+[Service]
+User={{ lumina_user }}
+Group={{ lumina_group }}
+WorkingDirectory={{ lumina_app_dir }}
+EnvironmentFile=/etc/lumina.env
+# gunicorn keeps its control-server socket under $HOME, which ProtectSystem=strict
+# makes read-only; the runtime directory is writable and ephemeral, which is what
+# that file wants to be.
+Environment=HOME=/run/lumina
+RuntimeDirectory=lumina
+ExecStart={{ lumina_venv }}/bin/gunicorn lumina.wsgi:application \
+    --bind {{ lumina_listen_address }}:{{ lumina_listen_port }} \
+    --workers {{ lumina_gunicorn_workers }} \
+    --timeout {{ lumina_gunicorn_timeout }} \
+    --access-logfile {{ lumina_log_dir }}/access.log \
+    --error-logfile {{ lumina_log_dir }}/error.log
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths={{ lumina_media_root }} {{ lumina_log_dir }}
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

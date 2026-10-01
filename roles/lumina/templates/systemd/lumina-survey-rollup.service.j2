@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Recompute Lumina survey aggregates (SurveyStat) from submissions
+After=network.target
+
+[Service]
+Type=oneshot
+User={{ lumina_user }}
+Group={{ lumina_group }}
+EnvironmentFile=/etc/lumina.env
+WorkingDirectory={{ lumina_app_dir }}
+# A runtime directory of this pair's own, not /run/lumina: that one belongs to
+# lumina.service via RuntimeDirectory=, so systemd deletes it whenever the app
+# stops, and a lock the rollup needs must not depend on the web service running.
+RuntimeDirectory=lumina-rollup
+RuntimeDirectoryPreserve=yes
+# Waits for the lock rather than skipping: the hourly current-month run is
+# short, and this is the one that keeps the yearly rows and the history right.
+ExecStart=/usr/bin/flock -w 900 /run/lumina-rollup/survey-rollup.lock \
+    {{ lumina_venv }}/bin/python manage.py survey_rollup

@@ -1,0 +1,5 @@
+#!/bin/sh
+# {{ ansible_managed }}
+
+# Only reload nginx if it is running
+systemctl is-active --quiet nginx.service && systemctl reload nginx.service

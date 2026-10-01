@@ -1,0 +1,100 @@
+---
+# The environment lumina runs with, in one place.
+#
+# It is rendered to /etc/lumina.env for systemd, and handed to the manage.py
+# runs in handlers/main.yml as a real process environment. One dict rather than
+# two copies means a setting added here reaches both, and - the reason it is a
+# dict at all - nothing has to shell-source the file. Sourcing it was how a
+# secret key containing `)` turned a deploy into a bash syntax error, with the
+# key itself printed in the error.
+#
+# Derived, not configuration: override the lumina_* variables in
+# defaults/main.yml, not this.
+_lumina_env_base:
+  DJANGO_SETTINGS_MODULE: "{{ lumina_settings_module }}"
+  DJANGO_DEBUG: "{{ lumina_debug | bool | ternary('1', '0') }}"
+  DJANGO_SECRET_KEY: "{{ lumina_secret_key }}"
+  DJANGO_ALLOWED_HOSTS: "{{ lumina_allowed_hosts }}"
+
+  DB_NAME: "{{ lumina_db_name }}"
+  DB_USER: "{{ lumina_db_user }}"
+  DB_PASSWORD: "{{ lumina_db_password }}"
+  DB_HOST: "{{ lumina_db_host }}"
+  DB_PORT: "{{ lumina_db_port }}"
+
+  VALKEY_URL: "{{ lumina_valkey_url }}"
+
+  MEDIA_ROOT: "{{ lumina_media_root }}"
+  # Not only for collectstatic: prod uses ManifestStaticFilesStorage, which
+  # reads staticfiles.json out of STATIC_ROOT at request time, so the service
+  # needs it too or every page raises "Missing staticfiles manifest entry".
+  LUMINA_STATIC_ROOT: "{{ lumina_static_root }}"
+  # Hand authorized attachment downloads to nginx. Must match the `internal`
+  # locations in the vhost; empty makes Django stream them instead.
+  LUMINA_INTERNAL_MEDIA_LOCATION: /media/
+
+  EMAIL_HOST: "{{ lumina_email_host }}"
+  EMAIL_PORT: "{{ lumina_email_port }}"
+  # Written ahead of the app reading them; see the note in defaults/main.yml.
+  EMAIL_HOST_USER: "{{ lumina_email_host_user }}"
+  EMAIL_HOST_PASSWORD: "{{ lumina_email_host_password }}"
+  EMAIL_USE_TLS: "{{ lumina_email_use_tls | ternary('1', '0') }}"
+  DEFAULT_FROM_EMAIL: "{{ lumina_default_from_email }}"
+  LUMINA_REVIEW_NOTIFY_EMAILS: "{{ lumina_review_notify_emails }}"
+
+  LUMINA_NOTIFICATIONS_ENABLED: "{{ lumina_notifications_enabled | ternary('1', '0') }}"
+  LUMINA_NOTIFY_DISABLED_EVENTS: "{{ lumina_notify_disabled_events }}"
+  LUMINA_SITE_BASE_URL: "{{ lumina_site_base_url }}"
+  LUMINA_ALLOW_INDEXING: "{{ lumina_allow_indexing | ternary('true', 'false') }}"
+  LUMINA_WEBHOOK_TIMEOUT_SECONDS: "{{ lumina_webhook_timeout_seconds }}"
+  LUMINA_NOTIFY_MAX_ATTEMPTS: "{{ lumina_notify_max_attempts }}"
+  LUMINA_MATTERMOST_WEBHOOK_URL: "{{ lumina_mattermost_webhook_url }}"
+  LUMINA_MATTERMOST_CHANNEL: "{{ lumina_mattermost_channel }}"
+
+  LUMINA_SURVEY_ENABLED: "{{ lumina_survey_enabled | ternary('1', '0') }}"
+  LUMINA_SURVEY_IDENTITY_PEPPER: "{{ lumina_survey_identity_pepper }}"
+  LUMINA_SURVEY_MAX_TOKEN_TTL_SECONDS: "{{ lumina_survey_max_token_ttl_seconds }}"
+
+  SENTRY_DSN: "{{ lumina_sentry_dsn }}"
+  SENTRY_ENVIRONMENT: "{{ lumina_sentry_environment }}"
+  SENTRY_TRACES_SAMPLE_RATE: "{{ lumina_sentry_traces_sample_rate }}"
+
+  OIDC_RP_CLIENT_ID: "{{ lumina_oidc_client_id }}"
+  OIDC_RP_CLIENT_SECRET: "{{ lumina_oidc_client_secret }}"
+  LUMINA_OIDC_GROUP_NESTED_PARENTS: "{{ lumina_oidc_group_nested_parents | ternary('true', 'false') }}"
+
+# Only when something sets it; the app picks its own default otherwise.
+_lumina_env_email_backend: >-
+  {{ (lumina_email_backend | length > 0)
+     | ternary({'EMAIL_BACKEND': lumina_email_backend}, {}) }}
+
+# Only when the client has a scope of that name assigned in the realm; Keycloak
+# rejects the whole sign-in with invalid_scope otherwise.
+_lumina_env_oidc_scopes: >-
+  {{ (lumina_oidc_scopes | length > 0)
+     | ternary({'OIDC_RP_SCOPES': lumina_oidc_scopes}, {}) }}
+
+# Absent rather than empty: an empty map does not mean "no map", it means "no
+# Keycloak group grants anything", and the app's shipped default is the better
+# behaviour for a deployment that has not thought about it yet.
+_lumina_env_oidc_group_map: >-
+  {{ (lumina_oidc_group_map | length > 0)
+     | ternary({'LUMINA_OIDC_GROUP_MAP': lumina_oidc_group_map}, {}) }}
+
+# Only with an issuer to derive them from: written unconditionally, an empty
+# issuer yields "/protocol/openid-connect/auth", a non-empty string, so "is OIDC
+# configured?" can no longer be answered by looking at the environment.
+_lumina_env_oidc_endpoints: >-
+  {{ (lumina_oidc_issuer | length > 0) | ternary({
+       'OIDC_OP_AUTHORIZATION_ENDPOINT': lumina_oidc_issuer ~ '/protocol/openid-connect/auth',
+       'OIDC_OP_TOKEN_ENDPOINT': lumina_oidc_issuer ~ '/protocol/openid-connect/token',
+       'OIDC_OP_USER_ENDPOINT': lumina_oidc_issuer ~ '/protocol/openid-connect/userinfo',
+       'OIDC_OP_JWKS_ENDPOINT': lumina_oidc_issuer ~ '/protocol/openid-connect/certs',
+     }, {}) }}
+
+lumina_env: >-
+  {{ _lumina_env_base
+     | combine(_lumina_env_email_backend)
+     | combine(_lumina_env_oidc_scopes)
+     | combine(_lumina_env_oidc_group_map)
+     | combine(_lumina_env_oidc_endpoints) }}

@@ -1,0 +1,207 @@
+---
+- name: Install dependencies
+  ansible.builtin.dnf:
+    name:
+      # The app needs python >= 3.12; EL9 ships 3.9 as /usr/bin/python3
+      - python3.12
+      - python3.12-devel
+      # ansible.builtin.pip imports packaging on the target to compare
+      # versions; nothing else pulls it in on a fresh host
+      - python3-packaging
+      - gcc
+      - git
+      # mysqlclient builds against these
+      - mariadb-connector-c-devel
+      - pkgconf-pkg-config
+      - policycoreutils-python-utils
+    state: present
+
+- name: Configure valkey cache
+  ansible.builtin.include_tasks: valkey.yml
+
+- name: Create system user
+  ansible.builtin.user:
+    name: "{{ lumina_user }}"
+    comment: Lumina certification catalog
+    system: true
+    home: "{{ lumina_home }}"
+    shell: /sbin/nologin
+    create_home: true
+
+- name: Create directory structure
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ lumina_user }}"
+    group: "{{ lumina_group }}"
+    mode: "0755"
+  loop:
+    - "{{ lumina_app_dir }}"
+    - "{{ lumina_media_root }}"
+    - "{{ lumina_static_root }}"
+    - "{{ lumina_log_dir }}"
+
+- name: Ensure the whole media tree is owned by the app user
+  # The app creates subdirectories under here at runtime (vendor logos, run
+  # bundles). Recursing lets a host where something once ran as root - a
+  # management command without become_user, say - heal itself rather than
+  # failing the next upload with EACCES. Ownership only, so modes are left be.
+  ansible.builtin.file:
+    path: "{{ lumina_media_root }}"
+    state: directory
+    owner: "{{ lumina_user }}"
+    group: "{{ lumina_group }}"
+    recurse: true
+
+- name: Label static and media for nginx (SELinux)
+  community.general.sefcontext:
+    target: "{{ item }}(/.*)?"
+    setype: httpd_sys_content_t
+    state: present
+  loop:
+    - "{{ lumina_static_root }}"
+    - "{{ lumina_media_root }}"
+  register: lumina_sefcontext
+  tags:
+    - selinux
+
+- name: Apply the labels to what is already there
+  ansible.builtin.command: restorecon -irF {{ lumina_static_root }} {{ lumina_media_root }}
+  when: lumina_sefcontext.changed # noqa no-handler
+  changed_when: true
+  tags:
+    - selinux
+
+- name: Clone application repository
+  ansible.builtin.git:
+    repo: "{{ lumina_repo }}"
+    dest: "{{ lumina_app_dir }}"
+    version: "{{ lumina_version }}"
+    force: true
+  become: true
+  become_user: "{{ lumina_user }}"
+  notify:
+    - Migrate lumina
+    - Configure lumina notifications
+    - Collectstatic lumina
+    - Restart lumina
+
+- name: Create python virtualenv and install app
+  ansible.builtin.pip:
+    # editable, so the clone above is what runs and a code change needs no
+    # reinstall. Passed as its own option because a name of "-e /path" reaches
+    # pip as one argument and is rejected as an invalid editable requirement.
+    name: "{{ lumina_app_dir }}"
+    editable: true
+    virtualenv: "{{ lumina_venv }}"
+    virtualenv_command: "{{ lumina_python }} -m venv"
+  become: true
+  become_user: "{{ lumina_user }}"
+  # Notifies nothing on purpose: an editable install from a path reports
+  # changed on every run, so notifying from here would migrate, re-collect
+  # static and restart on every deploy. The clone is the honest signal that the
+  # code moved, and it cannot be missed - a dependency bump is a commit too.
+
+- name: Write lumina environment file
+  ansible.builtin.template:
+    src: lumina.env.j2
+    dest: /etc/lumina.env
+    owner: root
+    group: "{{ lumina_group }}"
+    # 0640: the service user reads it, other local users don't
+    mode: "0640"
+  # The file is secret keys, the database password and the OIDC client secret.
+  # Without this, a run with --diff prints all of them, and so does the module's
+  # own error message if the write fails.
+  no_log: true
+  notify:
+    # A rotated secret (webhook URL, OIDC client secret) is applied by the same
+    # deploy that writes it rather than waiting for the next code change.
+    - Configure lumina notifications
+    - Restart lumina
+
+- name: Copy systemd service template
+  ansible.builtin.template:
+    src: lumina.service.j2
+    dest: /etc/systemd/system/lumina.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart lumina
+
+- name: Install maintenance timers
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - lumina-publish-embargoed.service
+    - lumina-publish-embargoed.timer
+    - lumina-prune-bundles.service
+    - lumina-prune-bundles.timer
+    - lumina-deliver-notifications.service
+    - lumina-deliver-notifications.timer
+    - lumina-survey-rollup.service
+    - lumina-survey-rollup.timer
+    - lumina-survey-rollup-current.service
+    - lumina-survey-rollup-current.timer
+  notify: Reload systemd
+
+- name: Install the lumina-manage wrapper
+  # So a one-off management command - seed_certified_systems, createsuperuser,
+  # or a migration after a failed deploy - runs with the service's environment
+  # without anybody having to reconstruct it.
+  ansible.builtin.template:
+    src: lumina-manage.j2
+    dest: /usr/local/bin/lumina-manage
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Rotate gunicorn logs
+  ansible.builtin.template:
+    src: logrotate.j2
+    dest: /etc/logrotate.d/lumina
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Migrate and collect static before anything is served
+  # Without this the first deploy starts gunicorn against an empty database and
+  # an unbuilt static manifest, and only fixes it when handlers flush at the end
+  # of the play.
+  ansible.builtin.meta: flush_handlers
+
+- name: Start lumina
+  ansible.builtin.systemd_service:
+    name: lumina.service
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Enable maintenance timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - lumina-publish-embargoed.timer
+    - lumina-prune-bundles.timer
+    - lumina-deliver-notifications.timer
+    # The nightly full rebuild and the hourly refresh of the current month.
+    # Both take the same lock, so they cannot race on a period's rows.
+    - lumina-survey-rollup.timer
+    - lumina-survey-rollup-current.timer
+
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+
+- name: Configure nginx reverse proxy
+  ansible.builtin.include_tasks: nginx.yml
+
+- name: Obtain SSL certificate
+  ansible.builtin.include_tasks: certbot-obtain.yml

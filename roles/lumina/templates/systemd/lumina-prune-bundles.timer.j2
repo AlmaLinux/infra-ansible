@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Prune rejected-run bundles daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
