@@ -10,7 +10,7 @@
     group: "{{ mattermost_group }}"
     system: true
     create_home: false
-    shell: /usr/sbin/nologin
+    shell: /sbin/nologin
     home: "{{ mattermost_install_dir }}"
 
 - name: Download mattermost tarball
