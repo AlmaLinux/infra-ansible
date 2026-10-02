@@ -1,5 +1,5 @@
 ---
-mattermost_version: 11.7.0
+mattermost_version: 11.7.11
 mattermost_arch: amd64
 mattermost_install_dir: /opt/mattermost
 mattermost_user: mattermost
