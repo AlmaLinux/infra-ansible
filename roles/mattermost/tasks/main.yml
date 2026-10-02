@@ -19,15 +19,80 @@
     dest: "/var/cache/mattermost-{{ mattermost_version }}-linux-{{ mattermost_arch }}.tar.gz"
     mode: "0644"
 
-- name: Extract mattermost tarball
-  ansible.builtin.unarchive:
-    src: "/var/cache/mattermost-{{ mattermost_version }}-linux-{{ mattermost_arch }}.tar.gz"
-    dest: /opt/
-    remote_src: true
-    owner: "{{ mattermost_user }}"
-    group: "{{ mattermost_group }}"
-    creates: "{{ mattermost_install_dir }}/bin/mattermost"
+- name: Read installed mattermost version
+  ansible.builtin.slurp:
+    src: "{{ mattermost_install_dir }}/.ansible-version"
+  register: mattermost_installed_version
+  failed_when: false
+
+# Follows the upstream upgrade procedure: stage the new release, wipe the old
+# tree except config/data/logs/plugins, then copy without clobbering what's kept.
+# https://docs.mattermost.com/administration-guide/upgrade/upgrading-mattermost-server.html
+- name: Install or upgrade mattermost
+  when: (mattermost_installed_version.content | default('') | b64decode | trim) != mattermost_version
   notify: Restart mattermost
+  block:
+    - name: Create mattermost staging directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: mattermost
+      register: mattermost_staging
+
+    - name: Extract mattermost tarball to staging
+      ansible.builtin.unarchive:
+        src: "/var/cache/mattermost-{{ mattermost_version }}-linux-{{ mattermost_arch }}.tar.gz"
+        dest: "{{ mattermost_staging.path }}"
+        remote_src: true
+
+    - name: Check for existing mattermost install
+      ansible.builtin.stat:
+        path: "{{ mattermost_install_dir }}/bin/mattermost"
+      register: mattermost_existing
+
+    - name: Stop mattermost for upgrade
+      ansible.builtin.systemd_service:
+        name: mattermost
+        state: stopped
+      when: mattermost_existing.stat.exists
+
+    - name: Remove old mattermost files, preserving config/data/logs/plugins # noqa no-changed-when
+      ansible.builtin.shell: |
+        find {{ mattermost_install_dir }} -mindepth 1 -maxdepth 1 \
+          ! -name config ! -name data ! -name logs ! -name plugins ! -name client \
+          -exec rm -rf {} +
+        if [ -d {{ mattermost_install_dir }}/client ]; then
+          find {{ mattermost_install_dir }}/client -mindepth 1 -maxdepth 1 ! -name plugins -exec rm -rf {} +
+        fi
+      when: mattermost_existing.stat.exists
+
+    - name: Create mattermost install directory
+      ansible.builtin.file:
+        path: "{{ mattermost_install_dir }}"
+        state: directory
+        owner: "{{ mattermost_user }}"
+        group: "{{ mattermost_group }}"
+        mode: "0755"
+
+    - name: Copy new mattermost files into place # noqa no-changed-when
+      ansible.builtin.command: cp -an {{ mattermost_staging.path }}/mattermost/. {{ mattermost_install_dir }}/
+
+    - name: Restore SELinux context on upgraded binaries # noqa no-changed-when
+      ansible.builtin.command: restorecon -irv {{ mattermost_install_dir }}/bin
+      when: mattermost_existing.stat.exists
+
+    - name: Record installed mattermost version
+      ansible.builtin.copy:
+        content: "{{ mattermost_version }}\n"
+        dest: "{{ mattermost_install_dir }}/.ansible-version"
+        owner: "{{ mattermost_user }}"
+        group: "{{ mattermost_group }}"
+        mode: "0644"
+  always:
+    - name: Remove mattermost staging directory
+      ansible.builtin.file:
+        path: "{{ mattermost_staging.path }}"
+        state: absent
+      when: mattermost_staging.path is defined
 
 - name: Create mattermost data directory
   ansible.builtin.file:
