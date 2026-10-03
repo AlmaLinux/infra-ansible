@@ -1,0 +1,28 @@
+---
+- name: Install web server {{ mantisbt_webserver }}
+  ansible.builtin.dnf:
+    name:
+      - '{{ mantisbt_webserver }}'
+      - php
+      - php-curl
+      - php-gd
+      - php-mysqlnd
+      - mod_ssl
+    state: present
+
+- name: Enable web server service
+  ansible.builtin.service:
+    name: '{{ mantisbt_webserver }}'
+    enabled: true
+    state: started
+
+- name: Enable firewalld rule
+  ansible.posix.firewalld:
+    service: '{{ item }}'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    '{{ mantisbt_web_services }}'
+
+...
