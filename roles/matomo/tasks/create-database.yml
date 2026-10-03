@@ -1,0 +1,30 @@
+---
+# Database creator
+
+- name: Install python packages needed to create databases and db users
+  ansible.builtin.dnf:
+    name: python3-PyMySQL
+  when:
+    - dbserver == 'mariadb-server' or dbserver == 'mysql-server'
+
+- name: Create Matomo's MySQL database
+  community.mysql.mysql_db:
+    name: "{{ matomo_db['name'] }}"
+    state: present
+    login_user: root
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  become: true
+  become_user: root
+  register: matomo_db_created
+
+- name: Create Matomo's database user
+  community.mysql.mysql_user:
+    name: "{{ matomo_db['user'] }}"
+    password: "{{ matomo_db['password'] }}"
+    state: present
+    priv: "{{ matomo_db['name'] }}.*:SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,ALTER,CREATE\ TEMPORARY\ TABLES,LOCK\ TABLES"
+    login_user: root
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  become: true
+  delegate_to: "{{ matomo_db_server }}"
+
