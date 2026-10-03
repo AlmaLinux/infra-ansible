@@ -1,0 +1,20 @@
+---
+- name: Install nginx web-server
+  ansible.builtin.dnf:
+    name: nginx
+    state: latest
+
+- name: enable web server service
+  ansible.builtin.service:
+    name: '{{ webserver}}'
+    enabled: true
+    state: started
+
+- name: enable firewalld rule
+  ansible.posix.firewalld:
+    service: '{{ item }}'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    '{{ web_services }}'

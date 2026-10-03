@@ -1,0 +1,111 @@
+---
+- name: Retrieve the installed package to workaround an issue with noggin package #Bug 2277356
+  ansible.builtin.package_facts:
+  when:
+    - apply_noggin_install_workaround
+
+- name: Create temporary directory where to store the needed rpms for noggin
+  ansible.builtin.file:
+    dest: '{{ noggin_temp_rpm_dir }}'
+    state: directory
+    mode: 0755
+  when:
+    - apply_noggin_install_workaround|default(False)
+    - "'noggin' not in ansible_facts.packages"
+
+- name: Download rpms needed by noggin rpm installation
+  ansible.builtin.dnf:
+    name: noggin
+    state: latest
+    download_only: True
+    download_dir: '{{ noggin_temp_rpm_dir }}'
+  when:
+    - apply_noggin_install_workaround|default(False)
+    - "'noggin' not in ansible_facts.packages"
+
+- name: Install noggin web application via rpms forcibly
+  ansible.builtin.shell:
+    cmd: rpm -ivh noggin* *rpm --force
+    chdir: '{{ noggin_temp_rpm_dir }}'
+  when:
+    - apply_noggin_install_workaround|default(False)
+    - "'noggin' not in ansible_facts.packages"
+  register: rpm_noggin_install
+
+- name: Remove the tempoary directory where noggin rpms have been downloaded
+  ansible.builtin.file:
+    dest: '{{ noggin_temp_rpm_dir }}'
+    state: absent
+  when: rpm_noggin_install.changed or "'noggin' in ansible_facts.packages"
+
+- name: Create nogging web application configuration dir
+  ansible.builtin.file:
+    path: /etc/noggin
+    mode: 0700
+    state: directory
+
+- name: Create freeipa CA cert directory
+  ansible.builtin.file:
+    path: '{{ freeipa_cert_dir }}'
+    state: directory
+
+- name: Deploy noggin web application configuration file
+  ansible.builtin.template:
+    src: noggin.cfg.j2
+    dest: /etc/noggin/noggin.cfg
+    backup: yes
+  notify:
+    - restart noggin webapp
+
+- name: Retrieve and store freeipa crt
+  ansible.builtin.shell: |
+    openssl s_client -showcerts -servername -connect {{ item.host}}:{{ item.port }}</dev/null 2>/dev/null|sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' |sed -ne '/1,-BEGIN CERTIFICATE/p' -e'/END CERTIFICATE/,$p'|tail -n +2
+  register: ipa_cert
+  changed_when: False
+  failed_when: False
+  loop: '{{ freeipa_hosts }}'
+
+- name: Store freeipa-cert on noggin node
+  ansible.builtin.template:
+    dest: '{{ freeipa_cert_dir }}/{{ freeipa_ca_cert_file }}'
+    src: ipa.crt.j2
+    backup: yes
+    mode: 0644
+
+- name: enable noggin service
+  ansible.builtin.service:
+    name: noggin
+    enabled: true
+    state: started
+
+- name: Deploy the noggin nginx configuratiion file
+  ansible.builtin.template:
+    src: nginx_noggin.conf.j2
+    dest: /etc/nginx/conf.d/noggin.conf
+    backup: yes
+  notify:
+    - reload nginx webserver
+
+- name: Create the directory for private key for noggin web server
+  ansible.builtin.file:
+    dest: /etc/noggin/private-key
+    state: directory
+    mode: 0700
+  when: nginx_noggin_enable_tls
+
+- name: Create private key (RSA, 4096 bits) for noggin
+  community.crypto.openssl_privatekey:
+    path: '{{noggin_private_key_dir }}/{{ noggin_private_key_name }}'
+    type: RSA
+    size: 4096
+    state: present
+    mode: 0700
+  when: nginx_noggin_enable_tls
+
+- name: Create simple self-signed certificate for noggin
+  community.crypto.x509_certificate:
+    path: '{{ noggin_cert_dir }}/{{ noggin_cert_name }}'
+    privatekey_path: '{{noggin_private_key_dir }}/{{ noggin_private_key_name }}'
+    provider: selfsigned
+    state: present
+  when: nginx_noggin_enable_tls
