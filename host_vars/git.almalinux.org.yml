@@ -1,2 +1,8 @@
 ---
 gitea_hostname: git.almalinux.org
+
+mysql_skip_name_resolve: true
+mysql_join_buffer_size: 1M
+mysql_innodb_buffer_pool_size: 4G
+mysql_innodb_log_file_size: 1G
+mysql_innodb_log_buffer_size: 1G
