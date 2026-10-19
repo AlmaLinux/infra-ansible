@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+/var/log/rsyncd.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    # Long-running rsync transfers may keep the original log open.
+    # Preserve its inode; copytruncate has a brief potential log-loss window.
+    copytruncate
+}
