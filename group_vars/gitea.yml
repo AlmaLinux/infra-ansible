@@ -57,6 +57,7 @@ gitea_config:
     repository:
       ROOT: /var/lib/gitea/data/repositories
       DEFAULT_REPO_UNITS: repo.code,repo.releases,repo.issues,repo.pulls
+      DISABLE_DOWNLOAD_SOURCE_ARCHIVES: "true"
     indexer:
       ISSUE_INDEXER_PATH: /var/lib/gitea/indexers/issues.bleve
     lfs:
@@ -120,5 +121,5 @@ gitea_config:
       DISABLE_GRAVATAR: "false"
     cron.archive_cleanup:
       ENABLED: "true"
-      SHCEDULE: "@midnight"
+      SCHEDULE: "@midnight"
       OLDER_THAN: 24h
