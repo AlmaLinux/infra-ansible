@@ -192,6 +192,7 @@ almalinux_repo_vhosts:
     root: /repo
     autoindex: true
     enable_http: true
+    absolute_redirect: false
     redirects:
       - location: /vault/
         strip_prefix: /vault
@@ -238,6 +239,7 @@ almalinux_repo_vhosts:
     root: /repo/vault
     autoindex: true
     enable_http: true
+    absolute_redirect: false
     redirects:
       - location: /almalinux-epel/
         strip_prefix: /almalinux-epel
@@ -266,6 +268,7 @@ almalinux_repo_vhosts:
     root: /repo/almalinux-nvidia
     autoindex: true
     enable_http: true
+    absolute_redirect: false
     # originally we deployed the cuda repos to the docroot, but now we use a subdirectory
     # these redirects should be maintained indefitely
     redirects:
