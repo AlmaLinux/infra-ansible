@@ -6,6 +6,12 @@
 {% if vhost.autoindex | default(false) %}
     autoindex on;
 {% endif %}
+{% if not (vhost.absolute_redirect | default(true)) %}
+    # Emit "Location: /path/" instead of "http://host/path/" on nginx's own
+    # redirects (directory slash redirects), so a client that came in over
+    # https through the LB is not bounced to the origin's scheme.
+    absolute_redirect off;
+{% endif %}
 
 {% for redirect in vhost.redirects | default([]) %}
 {% if redirect.raw is defined %}
