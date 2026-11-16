@@ -136,6 +136,8 @@ almalinux_repo_mirror_mirage_config:
       ignore:
         - "**/.~tmp~/**"     # rsync --delete-delay --update-delay style temp files
         - "**/.*.??????"     # rsync mktemp-style per-file temps
+        - '**/TIME.??????'
+        - '**/timestamp.txt.??????'
       bindings:
         - cdn: fastly_repo
           url_prefix: https://repo.almalinux.org/
@@ -147,6 +149,8 @@ almalinux_repo_mirror_mirage_config:
       ignore:
         - "**/.~tmp~/**"     # rsync --delete-delay --update-delay style temp files
         - "**/.*.??????"     # rsync mktemp-style per-file temps
+        - '**/TIME.??????'
+        - '**/timestamp.txt.??????'
       bindings:
         - cdn: fastly_vault
           url_prefix: https://vault.almalinux.org/
