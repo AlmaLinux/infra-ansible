@@ -1,0 +1,51 @@
+---
+- name: Check the OpenID Connect client is configured
+  ansible.builtin.assert:
+    that:
+      - wordpress_oidc_client_id | length > 0
+      - wordpress_oidc_client_secret | length > 0
+    fail_msg: wordpress_oidc_client_id and wordpress_oidc_client_secret must be set when wordpress_oidc_issuer is
+    quiet: true
+
+- name: Install the OpenID Connect plugin
+  # From wordpress.org, once. After that it updates itself; see below.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin install daggerhart-openid-connect-generic
+    creates: "{{ wordpress_root }}/wp-content/plugins/daggerhart-openid-connect-generic/openid-connect-generic.php"
+  become: true
+  become_user: "{{ wordpress_user }}"
+
+- name: Check whether the OpenID Connect plugin is active
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin is-active daggerhart-openid-connect-generic
+  become: true
+  become_user: "{{ wordpress_user }}"
+  register: wordpress_oidc_active
+  changed_when: false
+  failed_when: wordpress_oidc_active.rc not in [0, 1]
+
+- name: Activate the OpenID Connect plugin
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin activate daggerhart-openid-connect-generic
+  become: true
+  become_user: "{{ wordpress_user }}"
+  when: wordpress_oidc_active.rc == 1
+  changed_when: true
+
+- name: Check whether the OpenID Connect plugin updates itself
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin auto-updates status daggerhart-openid-connect-generic --field=status
+  become: true
+  become_user: "{{ wordpress_user }}"
+  register: wordpress_oidc_auto_update
+  changed_when: false
+
+- name: Let WordPress update the OpenID Connect plugin by itself
+  # It is the front door, so a security fix should not wait for somebody to
+  # notice it in wp-admin.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin auto-updates enable daggerhart-openid-connect-generic
+  become: true
+  become_user: "{{ wordpress_user }}"
+  when: wordpress_oidc_auto_update.stdout != 'enabled'
+  changed_when: true

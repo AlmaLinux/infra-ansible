@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Obtain the Let's Encrypt certificate for {{ wordpress_hostname }}
+# Once certbot has it, certbot-renew.timer looks after it and this is a no-op
+ConditionPathExists=!/etc/letsencrypt/renewal/{{ wordpress_hostname }}.conf
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# The deploy hook points nginx at the new certificate and reloads it, so a
+# certificate obtained here goes live without a deploy.
+ExecStart=/usr/bin/certbot certonly --webroot -w /var/lib/letsencrypt \
+    --cert-name {{ wordpress_hostname }} \
+    -d {{ wordpress_hostname }}{% for domain in wordpress_extra_domains %} -d {{ domain }}{% endfor %} \
+    -m {{ certbot_email }} --agree-tos -n \
+    --deploy-hook /etc/letsencrypt/deploy-nginx.sh

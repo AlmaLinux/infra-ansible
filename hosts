@@ -110,3 +110,6 @@ almapeople.org
 
 [lumina]
 catalog.almalinux.org ansible_host=3.226.62.20
+
+[shop]
+shop.almalinux.org ansible_host=184.192.78.212

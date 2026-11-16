@@ -1,0 +1,78 @@
+---
+- name: Install PHP
+  ansible.builtin.dnf:
+    name:
+      - php-fpm
+      - php-cli
+      - php-bcmath
+      - php-gd
+      - php-intl
+      - php-mbstring
+      - php-mysqlnd
+      - php-opcache
+      - php-pecl-zip
+      - php-process
+      - php-xml
+    state: present
+  tags:
+    - php
+
+- name: Create PHP session directory
+  # The distro's /var/lib/php/session is group apache, which this pool is not
+  ansible.builtin.file:
+    path: "{{ wordpress_php_session_dir }}"
+    state: directory
+    owner: root
+    group: "{{ wordpress_group }}"
+    mode: "0770"
+  tags:
+    - php
+
+- name: Disable the default www pool
+  # Emptied rather than deleted: it is %config(noreplace), so a php-fpm update
+  # puts a deleted one back and starts an apache-owned pool alongside ours,
+  # while an edited one is kept.
+  ansible.builtin.copy:
+    dest: /etc/php-fpm.d/www.conf
+    content: |
+      ; Managed by Ansible (roles/wordpress). Intentionally empty - WordPress
+      ; runs in the pool in wordpress.conf.
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload php-fpm
+  tags:
+    - php
+
+- name: Configure WordPress PHP-FPM pool
+  ansible.builtin.template:
+    src: php-fpm/wordpress.conf.j2
+    dest: /etc/php-fpm.d/wordpress.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload php-fpm
+  tags:
+    - php
+
+- name: Allow PHP to reach the database and the internet (SELinux)
+  # TCP to MariaDB on 127.0.0.1, and outbound HTTPS for core/plugin updates and
+  # anything a shop talks to - payment gateways, shipping rates, SMTP relays.
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    - httpd_can_network_connect_db
+    - httpd_can_network_connect
+  tags:
+    - php
+    - selinux
+
+- name: Start/enable php-fpm
+  ansible.builtin.systemd_service:
+    name: php-fpm.service
+    state: started
+    enabled: true
+  tags:
+    - php

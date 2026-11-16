@@ -1,0 +1,98 @@
+<?php
+// {{ ansible_managed }}
+{#
+  A PHP single-quoted string: only \ and ' are special inside one, so a vault
+  secret containing $ or " arrives as itself. Not to_json - that makes a
+  double-quoted string, which PHP would interpolate.
+#}
+{% macro php_str(value) -%}
+'{{ value | string | replace('\\', '\\\\') | replace("'", "\\'") }}'
+{%- endmacro %}
+
+define( 'DB_NAME', {{ php_str(wordpress_db_name) }} );
+define( 'DB_USER', {{ php_str(wordpress_db_user) }} );
+define( 'DB_PASSWORD', {{ php_str(wordpress_db_password) }} );
+define( 'DB_HOST', {{ php_str(wordpress_db_host ~ ':' ~ wordpress_db_port) }} );
+define( 'DB_CHARSET', 'utf8mb4' );
+define( 'DB_COLLATE', '' );
+
+// Generated on the first deploy and kept; see roles/wordpress/tasks/main.yml
+require __DIR__ . '/wp-salts.php';
+
+$table_prefix = {{ php_str(wordpress_table_prefix) }};
+
+define( 'WP_HOME', {{ php_str('https://' ~ wordpress_hostname) }} );
+define( 'WP_SITEURL', {{ php_str('https://' ~ wordpress_hostname) }} );
+define( 'FORCE_SSL_ADMIN', true );
+
+// wordpress-cron.timer runs scheduled events instead of page views
+define( 'DISABLE_WP_CRON', true );
+
+// PHP-FPM runs as the owner of the files, so updates and plugin installs from
+// wp-admin write directly - never prompting for FTP credentials.
+define( 'FS_METHOD', 'direct' );
+{% if wordpress_auto_update_core is boolean %}
+define( 'WP_AUTO_UPDATE_CORE', {{ wordpress_auto_update_core | ternary('true', 'false') }} );
+{% else %}
+define( 'WP_AUTO_UPDATE_CORE', {{ php_str(wordpress_auto_update_core) }} );
+{% endif %}
+
+// The in-browser theme/plugin editor turns any stolen admin session into code
+// execution. Installing and updating plugins is unaffected.
+define( 'DISALLOW_FILE_EDIT', true );
+
+define( 'WP_DEBUG', false );
+{% if wordpress_object_cache %}
+
+// LiteSpeed Cache's object cache, against the local Valkey. A setting defined
+// here beats its settings page, which shows it locked.
+//
+// No WP_CACHE, deliberately: LiteSpeed Cache adds or removes it in this file
+// to match its page cache setting, which it can't do here (the file is
+// read-only to WordPress). Left undefined with page caching off - the
+// default, and nothing behind nginx uses it - it has no reason to try.
+define( 'LITESPEED_CONF', true );
+define( 'LITESPEED_CONF__OBJECT', true );
+// true is Redis, which Valkey speaks; false is Memcached
+define( 'LITESPEED_CONF__OBJECT__KIND', true );
+define( 'LITESPEED_CONF__OBJECT__HOST', '127.0.0.1' );
+define( 'LITESPEED_CONF__OBJECT__PORT', 6379 );
+{% endif %}
+{% if wordpress_oidc_issuer | length > 0 %}
+{% set oidc_endpoint = wordpress_oidc_issuer ~ '/protocol/openid-connect/' %}
+
+// OpenID Connect Generic Client. A setting defined here beats the plugin's
+// settings page, which shows it locked, and is never written to the database.
+define( 'OIDC_LOGIN_TYPE', {{ php_str(wordpress_oidc_login_type) }} );
+define( 'OIDC_CLIENT_ID', {{ php_str(wordpress_oidc_client_id) }} );
+define( 'OIDC_CLIENT_SECRET', {{ php_str(wordpress_oidc_client_secret) }} );
+define( 'OIDC_CLIENT_SCOPE', {{ php_str(wordpress_oidc_scope) }} );
+define( 'OIDC_ISSUER', {{ php_str(wordpress_oidc_issuer) }} );
+define( 'OIDC_ENDPOINT_LOGIN_URL', {{ php_str(oidc_endpoint ~ 'auth') }} );
+define( 'OIDC_ENDPOINT_TOKEN_URL', {{ php_str(oidc_endpoint ~ 'token') }} );
+define( 'OIDC_ENDPOINT_USERINFO_URL', {{ php_str(oidc_endpoint ~ 'userinfo') }} );
+define( 'OIDC_ENDPOINT_LOGOUT_URL', {{ php_str(oidc_endpoint ~ 'logout') }} );
+// Without it the plugin never checks the ID token's signature
+define( 'OIDC_ENDPOINT_JWKS_URL', {{ php_str(oidc_endpoint ~ 'certs') }} );
+// A returning user is found by the provider's "sub" - Keycloak's user ID - so
+// a changed email or username still reaches the same account. The email is
+// copied in when the account is created and never refreshed after that.
+define( 'OIDC_CREATE_IF_DOES_NOT_EXIST', 1 );
+// Never attach a sign-in to an existing account by its email (or username):
+// that would hand any local account - the admin's, or a customer's - to
+// whoever has the same one at the provider. A clash fails the sign-in instead.
+define( 'OIDC_LINK_EXISTING_USERS', 0 );
+define( 'OIDC_REDIRECT_USER_BACK', 1 );
+define( 'OIDC_REDIRECT_ON_LOGOUT', 1 );
+define( 'OIDC_ENFORCE_PRIVACY', 0 );
+{% endif %}
+{% if wordpress_extra_config | length > 0 %}
+
+{{ wordpress_extra_config }}
+{% endif %}
+
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', {{ php_str(wordpress_root ~ '/') }} );
+}
+
+require_once ABSPATH . 'wp-settings.php';

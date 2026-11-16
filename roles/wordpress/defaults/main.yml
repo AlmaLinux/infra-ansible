@@ -1,0 +1,100 @@
+---
+# Public hostname: nginx vhost, TLS certificate, WP_HOME and WP_SITEURL
+wordpress_hostname: localhost.localdomain
+# Extra names to include on the certificate / vhost
+wordpress_extra_domains: []
+
+# latest, or a release such as 7.1.3. Only the first deploy downloads
+# WordPress; from then on core updates itself (see wordpress_auto_update_core),
+# so changing this later does nothing. The site's language is a setting in
+# wp-admin, which fetches the translations itself.
+wordpress_version: latest
+
+# Layout on disk. wp-config.php lives in wordpress_home, one level above the
+# document root, where nginx cannot serve it even if PHP stops handling it.
+wordpress_user: wordpress
+wordpress_group: wordpress
+wordpress_home: /var/www/wordpress
+wordpress_root: "{{ wordpress_home }}/public"
+
+# The site the first deploy creates. Changing these afterwards does nothing:
+# by then they are rows in the database, managed from wp-admin.
+wordpress_site_title: WordPress
+wordpress_admin_user: ''
+wordpress_admin_email: ''
+wordpress_admin_password: ''
+
+# wp-config.php
+wordpress_table_prefix: wp_
+# minor | true (major releases too) | false
+wordpress_auto_update_core: minor
+# Raw PHP added to wp-config.php before WordPress loads - constants a plugin
+# reads, say. wp-config.php is not writable by WordPress, so this is the place.
+wordpress_extra_config: ''
+
+# Database. The server itself is geerlingguy.mysql's job (see shop.yml); this
+# is only how WordPress reaches it.
+wordpress_db_name: wordpress
+wordpress_db_user: wordpress
+wordpress_db_password: ''
+wordpress_db_host: 127.0.0.1
+wordpress_db_port: 3306
+
+# PHP-FPM
+wordpress_php_fpm_socket: /run/php-fpm/wordpress.sock
+wordpress_php_session_dir: /var/lib/php/wordpress-session
+wordpress_php_memory_limit: 256M
+wordpress_php_fpm_max_children: 10
+wordpress_php_fpm_start_servers: 3
+wordpress_php_fpm_min_spare_servers: 2
+wordpress_php_fpm_max_spare_servers: 5
+# Largest upload in MB: PHP's upload_max_filesize and post_max_size, and
+# nginx's client_max_body_size, so a too-big file gets WordPress's own error
+# rather than a bare 413 from nginx.
+wordpress_upload_max_mb: 64
+# Seconds one request may run. nginx, PHP-FPM and PHP all use it: PHP's own
+# max_execution_time counts CPU time only, so a request waiting on a payment
+# gateway is cut off by the other two.
+wordpress_request_timeout: 300
+
+# xmlrpc.php is a brute-force and pingback-amplification target. Only unblock
+# it for something that needs it (Jetpack).
+wordpress_block_xmlrpc: true
+
+# A persistent object cache: Valkey on this host, and LiteSpeed Cache
+# (litespeed-cache) talking to it through phpredis. Behind nginx only the
+# plugin's general features work - object cache, image and CSS/JS
+# optimization; its page cache needs a LiteSpeed server.
+wordpress_object_cache: false
+# Valkey's ceiling. At it, the least recently used keys are evicted.
+wordpress_valkey_maxmemory: 256mb
+
+# WooCommerce, from wordpress.org, kept active. New accounts - registrations
+# and SSO sign-ins alike - become its customers. The store itself (address,
+# currency, payments, launching it) is set up in wp-admin, and updates are
+# WordPress's to apply.
+wordpress_woocommerce: false
+
+# OpenID Connect sign-in through the OpenID Connect Generic Client plugin
+# (daggerhart-openid-connect-generic), configured from wp-config.php. Off
+# while the issuer is blank. Endpoints are derived from the issuer the way
+# Keycloak lays them out. Roles are not synced from the provider: an SSO
+# account starts with the site's default role and is promoted in wp-admin.
+wordpress_oidc_issuer: ''  # e.g. https://id.almalinux.org/realms/master
+wordpress_oidc_client_id: ''
+wordpress_oidc_client_secret: ''
+# Only built-in scopes: Keycloak rejects the whole sign-in if one requested
+# scope is unknown to the client.
+wordpress_oidc_scope: openid email profile
+# button: a button on the password form | auto: wp-login.php goes straight to
+# the provider, which leaves no way to reach a local account from the UI
+wordpress_oidc_login_type: button
+
+# Certbot authentication method: http | dns_route53 | dns_cloudflare
+wordpress_certbot_auth: http
+wordpress_cloudflare_propagation_seconds: 30
+
+# Only required when wordpress_certbot_auth is dns_route53 / dns_cloudflare
+wordpress_route53_access_key: ''
+wordpress_route53_secret_key: ''
+wordpress_cloudflare_api_token: ''
