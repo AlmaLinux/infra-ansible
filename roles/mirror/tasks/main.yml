@@ -297,6 +297,10 @@
     mode: "0644"
   when: mirror_rsync_modules
 
+- name: Configure rsyncd log rotation
+  ansible.builtin.include_tasks: logrotate.yml
+  when: mirror_rsync_modules
+
 - name: Enable rsyncd
   ansible.builtin.systemd_service:
     name: rsyncd
