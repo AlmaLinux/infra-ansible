@@ -1,0 +1,12 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for noggin
+- name: reload nginx webserver
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+
+- name: restart noggin webapp
+  ansible.builtin.systemd:
+    name: noggin
+    state: restarted
