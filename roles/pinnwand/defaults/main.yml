@@ -1,0 +1,17 @@
+---
+# defaults file for pinnwand
+pinnwand_os_user: pinnwand
+pinnwand_home_dir: /opt
+
+pinwwand_http_port: 8000
+pinnwand_cfg_file: pinnwand.toml
+
+pinnwand_dbserver: mysql-server
+pinnwand_dbclient: mysql
+pinnwand_dbserver_service: mysqld
+
+pinnwand_db_name: pinnwand_db
+pinnwand_db_user: pinnwand
+pinnwand_db_pass: pinnwand
+pinnwand_db_driver: mysql+pymysql
+pinnwand_db_host: 127.0.0.1
