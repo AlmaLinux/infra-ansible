@@ -1,0 +1,24 @@
+---
+# tasks file for mantisbt
+- name: Install webserver
+  ansible.builtin.include_tasks:
+    file: install_webserver.yml
+
+- name: Install dbserver
+  ansible.builtin.include_tasks:
+    file: install_dbserver.yml
+
+- name: Setup environment
+  ansible.builtin.include_tasks:
+    file: setup_environment.yml
+
+- name: Download mantis
+  ansible.builtin.include_tasks:
+    file: download_mantisbt.yml
+  when: install_mantis|default(false)
+
+- name: Install mantis
+  ansible.builtin.include_tasks:
+    file: install_mantisbt.yml
+  when: install_mantis|default(false)
+...
