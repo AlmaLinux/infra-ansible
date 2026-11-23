@@ -1,0 +1,9 @@
+---
+# Handlers run after the "Enable and start" task, which has already done the
+# daemon-reload, so a changed unit file is in effect by the time this fires.
+# --no-block because on SIGTERM the runner waits for its current job (up to
+# shutdown_timeout) before exiting, and the play shouldn't sit on that; the
+# restart completes once the job does.
+- name: Restart forgejo-runner
+  ansible.builtin.command: systemctl --no-block restart forgejo-runner.service # noqa: command-instead-of-module
+  changed_when: true

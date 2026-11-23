@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Periodically prune {{ forgejo_runner_user }}'s podman storage
+
+[Timer]
+OnCalendar={{ forgejo_runner_prune_schedule }}
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

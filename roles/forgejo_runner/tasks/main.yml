@@ -1,0 +1,125 @@
+---
+- name: Check the runner connections are set
+  # Resolves the vault lookups here, so a missing secret fails with a readable
+  # error rather than inside the config template, whose no_log would hide it.
+  ansible.builtin.assert:
+    that:
+      - forgejo_runner_connections | length > 0
+      - _uuids | select | list | length == forgejo_runner_connections | length
+      - _tokens | select | list | length == forgejo_runner_connections | length
+    fail_msg: >-
+      forgejo_runner_connections needs at least one entry, each with a uuid and
+      a token; group_vars/forgejo_runner.yml reads them from vault
+    quiet: true
+  vars:
+    _uuids: "{{ forgejo_runner_connections.values() | map(attribute='uuid') }}"
+    _tokens: "{{ forgejo_runner_connections.values() | map(attribute='token') }}"
+
+- name: Install packages
+  ansible.builtin.dnf:
+    name:
+      - curl
+      - git
+      - podman
+      - python3
+      - python3-pip
+      - python3-rpm
+      - rpm-build
+    state: present
+
+- name: Create runner user
+  ansible.builtin.user:
+    name: "{{ forgejo_runner_user }}"
+    comment: Forgejo Actions runner
+    system: true
+    home: "{{ forgejo_runner_home }}"
+    create_home: true
+    # devsec os_hardening resets every system account to nologin on each run;
+    # matching it keeps the two roles from flipping it back and forth.
+    shell: /sbin/nologin
+  register: forgejo_runner_account
+
+- name: Allocate subordinate ids for rootless podman
+  ansible.builtin.lineinfile:
+    path: "{{ item }}"
+    regexp: "^{{ forgejo_runner_user }}:"
+    line: "{{ forgejo_runner_user }}:{{ forgejo_runner_subid_start }}:{{ forgejo_runner_subid_count }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - /etc/subuid
+    - /etc/subgid
+
+- name: Enable lingering for the runner user
+  # Starts the user's systemd instance at boot and keeps it running with nobody
+  # logged in. That instance owns /run/user/<uid> and the session bus, which
+  # rootless podman uses for its runtime state and cgroup scopes.
+  ansible.builtin.command: loginctl enable-linger {{ forgejo_runner_user }}
+  args:
+    creates: /var/lib/systemd/linger/{{ forgejo_runner_user }}
+
+- name: Download forgejo-runner binary
+  ansible.builtin.get_url:
+    url: "{{ _forgejo_runner_url }}"
+    checksum: "sha256:{{ _forgejo_runner_url }}.sha256"
+    dest: /usr/local/bin/forgejo-runner
+    owner: root
+    group: root
+    mode: "0755"
+  vars:
+    _forgejo_runner_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}"
+    _forgejo_runner_release: https://code.forgejo.org/forgejo/runner/releases/download/v{{ forgejo_runner_version }}
+    _forgejo_runner_url: "{{ _forgejo_runner_release }}/forgejo-runner-{{ forgejo_runner_version }}-linux-{{ _forgejo_runner_arch }}"
+  notify: Restart forgejo-runner
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ forgejo_runner_config | dirname }}"
+    state: directory
+    owner: root
+    group: "{{ forgejo_runner_user }}"
+    mode: "0750"
+
+- name: Write runner config
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ forgejo_runner_config }}"
+    owner: root
+    group: "{{ forgejo_runner_user }}"
+    mode: "0640"
+  # Holds the runner token; without this --diff prints it.
+  no_log: true
+  notify: Restart forgejo-runner
+
+- name: Install runner unit
+  ansible.builtin.template:
+    src: forgejo-runner.service.j2
+    dest: /etc/systemd/system/forgejo-runner.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart forgejo-runner
+
+- name: Install podman prune units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - forgejo-runner-podman-prune.service
+    - forgejo-runner-podman-prune.timer
+
+- name: Enable and start the runner and the prune timer
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    # picks up unit files written above; a changed timer is re-armed by this too
+    daemon_reload: true
+  loop:
+    - forgejo-runner.service
+    - forgejo-runner-podman-prune.timer

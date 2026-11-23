@@ -1,0 +1,8 @@
+---
+# Orgs this runner takes jobs from. To add one, create the runner in the org's
+# settings (/org/<org>/settings/actions/runners), store the uuid and token it
+# shows in vault at kv/data/infra/forgejo_runner/<this host>/<org> under the
+# keys `uuid` and `token`, and add the org here.
+forgejo_runner_orgs:
+  - almalinux
+  - autopatch
