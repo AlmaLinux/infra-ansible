@@ -1,0 +1,20 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+# A graceful reload re-reads the pool files without dropping requests in flight
+- name: Reload php-fpm
+  ansible.builtin.systemd_service:
+    name: php-fpm.service
+    state: reloaded
+
+- name: Restart valkey
+  ansible.builtin.systemd_service:
+    name: valkey.service
+    state: restarted
+
+- name: Reload nginx
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: reloaded

@@ -1,0 +1,11 @@
+---
+- name: Configure wordpress (shop.almalinux.org)
+  hosts:
+    - shop
+  roles:
+    - common
+    - geerlingguy.mysql
+    - wordpress
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening

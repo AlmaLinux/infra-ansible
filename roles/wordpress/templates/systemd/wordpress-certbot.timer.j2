@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Retry the Let's Encrypt certificate for {{ wordpress_hostname }} hourly
+
+[Timer]
+# Hourly stays well inside Let's Encrypt's 5 failed validations per hostname
+# per hour, however long DNS takes to arrive.
+OnCalendar=hourly
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

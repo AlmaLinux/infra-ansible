@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Run due WordPress cron events
+After=network.target mariadb.service
+
+[Service]
+Type=oneshot
+User={{ wordpress_user }}
+Group={{ wordpress_group }}
+# The pool's memory limit, so an event gets what a web request would rather
+# than the 128M EL's php.ini gives the CLI.
+ExecStart=/usr/bin/php -d memory_limit={{ wordpress_php_memory_limit }} \
+    /usr/bin/wp --path={{ wordpress_root }} cron event run --due-now --quiet

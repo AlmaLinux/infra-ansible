@@ -1,0 +1,101 @@
+# {{ ansible_managed }}
+# Virtual host: {{ wordpress_hostname }}
+
+{% set all_server_names = [wordpress_hostname] + wordpress_extra_domains %}
+upstream wordpress_php {
+    server unix:{{ wordpress_php_fpm_socket }};
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ all_server_names | join(' ') }};
+
+    # Above the redirect on purpose: a port 80 block that redirects everything
+    # breaks http-01 renewal ninety days later.
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+{% if ansible_facts.packages['nginx'][0]['version'] is version('1.25.1', '>=') %}
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+{% else %}
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+{% endif %}
+    server_name {{ all_server_names | join(' ') }};
+
+    # The self-signed placeholder until certbot has a certificate, then links
+    # to it (certbot-deploy-hook.sh), so this never changes.
+    ssl_certificate /etc/pki/nginx/{{ wordpress_hostname }}/fullchain.pem;
+    ssl_certificate_key /etc/pki/nginx/{{ wordpress_hostname }}/privkey.pem;
+
+    root {{ wordpress_root }};
+    index index.php;
+
+    client_max_body_size {{ wordpress_upload_max_mb }}M;
+
+    access_log /var/log/nginx/{{ wordpress_hostname }}.access.log;
+
+    # Dotfiles (.git, .htaccess, .user.ini) are never content. .well-known is,
+    # though - payment plugins publish Apple Pay domain verification there.
+    location ~ /\.(?!well-known/) {
+        deny all;
+    }
+
+{% if wordpress_woocommerce %}
+    # Downloadable products and WooCommerce's logs. WooCommerce guards both
+    # with .htaccess, which nginx ignores; a purchased file is handed out by
+    # WooCommerce itself after it has checked the order, never by its URL.
+    location ~ ^/wp-content/uploads/(woocommerce_uploads|wc-logs)/ {
+        deny all;
+    }
+
+{% endif %}
+    # Uploads are user-supplied, so a .php that lands there must never run.
+    # Above the PHP location: nginx uses the first regex that matches.
+    location ~* ^/wp-content/uploads/.*\.php$ {
+        deny all;
+    }
+
+{% if wordpress_block_xmlrpc %}
+    location = /xmlrpc.php {
+        deny all;
+    }
+
+{% endif %}
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+        # A path that is not a real script is a 404 here, rather than handed to
+        # PHP-FPM to guess at with cgi.fix_pathinfo.
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        # httpoxy: a client's Proxy: header must not become PHP's HTTP_PROXY
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_pass wordpress_php;
+        fastcgi_read_timeout {{ wordpress_request_timeout }}s;
+        # WooCommerce's cart and session cookies outgrow the default 4k/8k
+        # header buffer ("upstream sent too big header", a 502).
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location ~* \.(?:css|js|mjs|map|jpe?g|png|gif|ico|svg|webp|avif|woff2?|ttf|otf|eot)$ {
+        expires 30d;
+        access_log off;
+        log_not_found off;
+    }
+}

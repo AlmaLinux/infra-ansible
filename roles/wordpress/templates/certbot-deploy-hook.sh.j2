@@ -1,0 +1,19 @@
+#!/bin/sh
+# {{ ansible_managed }}
+#
+# Run by certbot whenever it issues or renews a certificate - from a deploy,
+# from wordpress-certbot.timer, or from certbot-renew.timer.
+
+# nginx reads /etc/pki/nginx/<name>/, which starts out holding a self-signed
+# placeholder. Pointing it at the lineage puts the real certificate live with
+# no change to nginx's config, and renewals follow through certbot's own links.
+if [ -n "${RENEWED_LINEAGE:-}" ]; then
+    dir="/etc/pki/nginx/$(basename "$RENEWED_LINEAGE")"
+    if [ -d "$dir" ]; then
+        ln -sf "$RENEWED_LINEAGE/fullchain.pem" "$dir/fullchain.pem"
+        ln -sf "$RENEWED_LINEAGE/privkey.pem" "$dir/privkey.pem"
+    fi
+fi
+
+# Only reload nginx if it is running
+systemctl is-active --quiet nginx.service && systemctl reload nginx.service

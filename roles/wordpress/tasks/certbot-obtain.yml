@@ -1,0 +1,60 @@
+---
+- name: Check for existing certbot-managed certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/renewal/{{ wordpress_hostname }}.conf
+  register: wordpress_certbot_renewal_check
+  tags: certbot
+
+- name: Remove placeholder certificate before certbot provisioning
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ wordpress_hostname }}
+    state: absent
+  when: not wordpress_certbot_renewal_check.stat.exists
+  tags: certbot
+
+- name: Obtain SSL certificate with certbot # noqa command-instead-of-module
+  # Through the unit wordpress-certbot.timer retries, so there is one http-01
+  # command. It fails on a host DNS does not point at yet, and that must not
+  # fail the deploy: the site stays up on the self-signed certificate, and the
+  # timer brings the real one in once DNS arrives. (The DNS methods obtained
+  # theirs in certbot.yml.)
+  ansible.builtin.command: systemctl start wordpress-certbot.service
+  when:
+    - not wordpress_certbot_renewal_check.stat.exists
+    - wordpress_certbot_auth == 'http'
+  register: wordpress_certbot_result
+  changed_when: wordpress_certbot_result.rc == 0
+  failed_when: false
+  tags: certbot
+
+- name: Report the certificate still to come
+  ansible.builtin.debug:
+    msg: >-
+      No certificate for {{ wordpress_hostname }} yet - is DNS pointing here?
+      wordpress-certbot.timer retries hourly and puts it live by itself;
+      journalctl -u wordpress-certbot.service says why this attempt failed.
+  when:
+    - wordpress_certbot_result.rc is defined
+    - wordpress_certbot_result.rc != 0
+  tags: certbot
+
+- name: Check for SSL certificate after obtainment
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ wordpress_hostname }}/fullchain.pem
+  register: wordpress_le_cert_check
+  tags: certbot
+
+- name: Point nginx at the Let's Encrypt certificate
+  # The deploy hook does this whenever certbot issues; this is for a
+  # certificate that predates the hook doing it.
+  ansible.builtin.file:
+    src: /etc/letsencrypt/live/{{ wordpress_hostname }}/{{ item }}
+    dest: /etc/pki/nginx/{{ wordpress_hostname }}/{{ item }}
+    state: link
+    force: true
+  loop:
+    - fullchain.pem
+    - privkey.pem
+  when: wordpress_le_cert_check.stat.exists
+  notify: Reload nginx
+  tags: certbot

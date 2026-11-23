@@ -1,0 +1,8 @@
+<?php
+// {{ ansible_managed }}
+//
+// Written once by the first deploy and never again. Replace them by deleting
+// this file and redeploying - which signs every user out, and does nothing else.
+{% for key in ['AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY', 'AUTH_SALT', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'NONCE_SALT'] %}
+define( '{{ key }}', '{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=64) }}' );
+{% endfor %}

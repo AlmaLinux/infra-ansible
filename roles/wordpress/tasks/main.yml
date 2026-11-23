@@ -1,0 +1,206 @@
+---
+- name: Create system user
+  ansible.builtin.user:
+    name: "{{ wordpress_user }}"
+    comment: WordPress
+    system: true
+    home: "{{ wordpress_home }}"
+    shell: /sbin/nologin
+    create_home: false
+
+- name: Create directory structure
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ wordpress_user }}"
+    group: "{{ wordpress_group }}"
+    mode: "0755"
+  loop:
+    - "{{ wordpress_home }}"
+    - "{{ wordpress_root }}"
+
+- name: Label the install for nginx and PHP-FPM (SELinux)
+  # The document root is read-write because WordPress updates its own core,
+  # plugins and themes from wp-admin. wp-config.php sits outside it, read-only.
+  community.general.sefcontext:
+    target: "{{ item.target }}(/.*)?"
+    setype: "{{ item.setype }}"
+    state: present
+  loop:
+    - target: "{{ wordpress_home }}"
+      setype: httpd_sys_content_t
+    - target: "{{ wordpress_root }}"
+      setype: httpd_sys_rw_content_t
+  register: wordpress_sefcontext
+  tags:
+    - selinux
+
+- name: Apply the labels to what is already there
+  ansible.builtin.command: restorecon -irF {{ wordpress_home }}
+  when: wordpress_sefcontext.changed # noqa no-handler
+  changed_when: true
+  tags:
+    - selinux
+
+- name: PHP-FPM
+  ansible.builtin.include_tasks: php-fpm.yml
+
+- name: Install wp-cli
+  # Does the first install and runs WP-Cron from a systemd timer
+  ansible.builtin.dnf:
+    name: wp-cli
+    state: present
+
+- name: Check for an existing WordPress
+  ansible.builtin.stat:
+    path: "{{ wordpress_root }}/wp-includes/version.php"
+  register: wordpress_core
+
+- name: Download WordPress
+  # Not wp core download: wp-cli unpacks the release with PHP's PharData, which
+  # silently cuts every path at tar's old 100-character limit, and WordPress 7
+  # ships 25 files with longer ones. unarchive uses GNU tar.
+  when: not wordpress_core.stat.exists
+  vars:
+    _wordpress_tarball: "https://wordpress.org/{{ 'latest' if wordpress_version == 'latest' else 'wordpress-' ~ wordpress_version }}.tar.gz"
+  block:
+    - name: Fetch the release
+      ansible.builtin.get_url:
+        url: "{{ _wordpress_tarball }}"
+        dest: "{{ wordpress_home }}/wordpress.tar.gz"
+        checksum: "sha1:{{ _wordpress_tarball }}.sha1"
+        owner: "{{ wordpress_user }}"
+        group: "{{ wordpress_group }}"
+        mode: "0644"
+
+    - name: Unpack the release
+      ansible.builtin.unarchive:
+        src: "{{ wordpress_home }}/wordpress.tar.gz"
+        dest: "{{ wordpress_root }}"
+        remote_src: true
+        extra_opts:
+          - --strip-components=1
+      become: true
+      become_user: "{{ wordpress_user }}"
+
+    - name: Remove Hello Dolly
+      ansible.builtin.file:
+        path: "{{ wordpress_root }}/wp-content/plugins/hello.php"
+        state: absent
+
+  always:
+    - name: Remove the release tarball
+      ansible.builtin.file:
+        path: "{{ wordpress_home }}/wordpress.tar.gz"
+        state: absent
+
+- name: Generate authentication keys and salts
+  # Once, on the first deploy, and never rewritten: they only have to be
+  # random and stable, and replacing them does nothing worse than sign
+  # everybody out - so a rebuilt host is free to generate new ones.
+  ansible.builtin.template:
+    src: wp-salts.php.j2
+    dest: "{{ wordpress_home }}/wp-salts.php"
+    owner: root
+    group: "{{ wordpress_group }}"
+    mode: "0640"
+    force: false
+  no_log: true
+
+- name: Write wp-config.php
+  ansible.builtin.template:
+    src: wp-config.php.j2
+    dest: "{{ wordpress_home }}/wp-config.php"
+    owner: root
+    group: "{{ wordpress_group }}"
+    # 0640 and root's: PHP reads it, but neither WordPress nor a plugin can
+    # rewrite it, and other local users can't read the database password.
+    mode: "0640"
+  # Holds the database password; without this --diff prints it
+  no_log: true
+
+- name: Check whether WordPress is installed
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} core is-installed
+  become: true
+  become_user: "{{ wordpress_user }}"
+  register: wordpress_is_installed
+  changed_when: false
+  failed_when: wordpress_is_installed.rc not in [0, 1]
+
+- name: Install WordPress
+  # Before nginx is configured, on purpose: an uninstalled WordPress hands its
+  # admin account to whoever reaches install.php first.
+  when: wordpress_is_installed.rc == 1
+  block:
+    - name: Check the admin account is configured
+      ansible.builtin.assert:
+        that:
+          - wordpress_admin_user | length > 0
+          - wordpress_admin_email | length > 0
+          - wordpress_admin_password | length > 0
+        fail_msg: wordpress_admin_user, wordpress_admin_email and wordpress_admin_password must be set for the first install
+        quiet: true
+
+    - name: Create the site and admin account
+      ansible.builtin.command:
+        # The password goes in on stdin, so it is never on a command line
+        argv:
+          - /usr/bin/wp
+          - --path={{ wordpress_root }}
+          - core
+          - install
+          - --url=https://{{ wordpress_hostname }}
+          - --title={{ wordpress_site_title }}
+          - --admin_user={{ wordpress_admin_user }}
+          - --admin_email={{ wordpress_admin_email }}
+          - --skip-email
+          - --prompt=admin_password
+        # Slashed the way wp-login.php will check it; see the template
+        stdin: "{{ lookup('ansible.builtin.template', 'admin-password.j2') }}"
+      become: true
+      become_user: "{{ wordpress_user }}"
+      changed_when: true
+      no_log: true
+
+- name: WooCommerce
+  ansible.builtin.include_tasks: woocommerce.yml
+  when: wordpress_woocommerce
+
+- name: OpenID Connect
+  ansible.builtin.include_tasks: oidc.yml
+  when: wordpress_oidc_issuer | length > 0
+
+- name: Object cache
+  ansible.builtin.include_tasks: object-cache.yml
+  when: wordpress_object_cache
+
+- name: Install WP-Cron units
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - wordpress-cron.service
+    - wordpress-cron.timer
+  notify: Reload systemd
+
+- name: Enable WP-Cron timer
+  # wp-config.php sets DISABLE_WP_CRON, so this is the only thing running
+  # scheduled events - WooCommerce's action queue among them.
+  ansible.builtin.systemd_service:
+    name: wordpress-cron.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Certbot
+  ansible.builtin.include_tasks: certbot.yml
+
+- name: Configure nginx
+  ansible.builtin.include_tasks: nginx.yml
+
+- name: Obtain SSL certificate
+  ansible.builtin.include_tasks: certbot-obtain.yml

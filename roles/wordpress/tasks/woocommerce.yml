@@ -1,0 +1,45 @@
+---
+- name: Install WooCommerce
+  # From wordpress.org, once. After that it is updated from wp-admin.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin install woocommerce
+    creates: "{{ wordpress_root }}/wp-content/plugins/woocommerce/woocommerce.php"
+  become: true
+  become_user: "{{ wordpress_user }}"
+
+- name: Check whether WooCommerce is active
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin is-active woocommerce
+  become: true
+  become_user: "{{ wordpress_user }}"
+  register: wordpress_woocommerce_active
+  changed_when: false
+  failed_when: wordpress_woocommerce_active.rc not in [0, 1]
+
+- name: Activate WooCommerce
+  # The first activation creates its tables, the customer and shop_manager
+  # roles, and the shop, cart, checkout and account pages.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin activate woocommerce
+  become: true
+  become_user: "{{ wordpress_user }}"
+  when: wordpress_woocommerce_active.rc == 1
+  changed_when: true
+
+- name: Check the role new accounts get
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} option get default_role
+  become: true
+  become_user: "{{ wordpress_user }}"
+  register: wordpress_default_role
+  changed_when: false
+
+- name: Make new accounts WooCommerce customers
+  # Rather than WordPress subscribers. The OpenID Connect plugin creates its
+  # accounts with this role too.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} option update default_role customer
+  become: true
+  become_user: "{{ wordpress_user }}"
+  when: wordpress_default_role.stdout != 'customer'
+  changed_when: true

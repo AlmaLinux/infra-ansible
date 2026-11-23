@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+#
+# Valkey as WordPress's object cache: bounded, and nothing kept across a
+# restart. Included from the end of valkey.conf.
+
+# Evict rather than refuse writes at the limit: most object cache entries are
+# stored without an expiry, so without eviction the cache only ever grows.
+maxmemory {{ wordpress_valkey_maxmemory }}
+maxmemory-policy allkeys-lru
+
+# No snapshots. A cache restored after the database has moved on serves stale
+# objects; an empty one only costs a few slower requests. That includes the
+# writes WordPress made uncached while Valkey was down: coming back empty is
+# what keeps them from being shadowed by old entries.
+save ""

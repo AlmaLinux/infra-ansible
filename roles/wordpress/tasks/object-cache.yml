@@ -1,0 +1,105 @@
+---
+- name: Install Valkey and phpredis
+  ansible.builtin.dnf:
+    name:
+      - valkey
+      - php-pecl-redis6
+    state: present
+  register: wordpress_object_cache_packages
+  tags:
+    - valkey
+
+- name: Load phpredis into PHP-FPM
+  # Now rather than from a handler at the end of the play: the drop-in enabled
+  # below asks for phpredis on the very next request.
+  ansible.builtin.systemd_service:
+    name: php-fpm.service
+    state: reloaded
+  when: wordpress_object_cache_packages.changed # noqa no-handler
+  tags:
+    - valkey
+
+- name: Configure Valkey as a cache
+  ansible.builtin.template:
+    src: valkey/wordpress.conf.j2
+    dest: /etc/valkey/wordpress.conf
+    # What the package's tmpfiles rule (Z /etc/valkey ... valkey root) sets on
+    # everything in here at every boot; anything else flips back and makes the
+    # next run restart Valkey for nothing.
+    owner: valkey
+    group: root
+    mode: "0640"
+  notify: Restart valkey
+  tags:
+    - valkey
+
+- name: Read the cache settings from valkey.conf
+  # Last, so they win over anything set earlier in the file. The rest of the
+  # packaged config is left as it ships.
+  ansible.builtin.lineinfile:
+    path: /etc/valkey/valkey.conf
+    line: include /etc/valkey/wordpress.conf
+    insertafter: EOF
+  notify: Restart valkey
+  tags:
+    - valkey
+
+- name: Start/enable Valkey
+  ansible.builtin.systemd_service:
+    name: valkey.service
+    state: started
+    enabled: true
+  tags:
+    - valkey
+
+- name: Install LiteSpeed Cache
+  # From wordpress.org, once. After that it is updated from wp-admin.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin install litespeed-cache
+    creates: "{{ wordpress_root }}/wp-content/plugins/litespeed-cache/litespeed-cache.php"
+  become: true
+  become_user: "{{ wordpress_user }}"
+
+- name: Check whether LiteSpeed Cache is active
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin is-active litespeed-cache
+  become: true
+  become_user: "{{ wordpress_user }}"
+  register: wordpress_object_cache_active
+  changed_when: false
+  failed_when: wordpress_object_cache_active.rc not in [0, 1]
+
+- name: Activate LiteSpeed Cache
+  # Activation writes the object-cache.php drop-in and the settings file it
+  # reads (.litespeed_conf.php), from the LITESPEED_CONF__* constants in
+  # wp-config.php.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} plugin activate litespeed-cache
+  become: true
+  become_user: "{{ wordpress_user }}"
+  when: wordpress_object_cache_active.rc == 1
+  changed_when: true
+
+- name: Check the object cache drop-in is LiteSpeed's
+  ansible.builtin.command:
+    cmd: grep -q LSCWP_OBJECT_CACHE {{ wordpress_root }}/wp-content/object-cache.php
+  register: wordpress_object_cache_dropin
+  changed_when: false
+  # 1 is someone else's drop-in, 2 none at all
+  failed_when: wordpress_object_cache_dropin.rc not in [0, 1, 2]
+
+- name: Check for the drop-in's settings file
+  ansible.builtin.stat:
+    path: "{{ wordpress_root }}/wp-content/.litespeed_conf.php"
+  register: wordpress_object_cache_conf
+
+- name: Write the object cache drop-in
+  # Activation normally has, but not for a plugin that was already active, and
+  # Redis Object Cache leaves its own drop-in behind. Saving any setting
+  # rewrites both files from the current settings, constants included.
+  ansible.builtin.command:
+    cmd: /usr/bin/wp --path={{ wordpress_root }} litespeed-option set object true
+  become: true
+  become_user: "{{ wordpress_user }}"
+  when: wordpress_object_cache_dropin.rc != 0 or not wordpress_object_cache_conf.stat.exists
+  changed_when: true
