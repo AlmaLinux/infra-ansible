@@ -23,6 +23,13 @@
         add_header Cache-Control "public, max-age=31536000, immutable" always;
     }
 
+    # 6-month cache for ISOs. Not immutable: *-latest-* symlinks get retargeted
+    # and re-spins can reuse a name (mirror-mirage purges the CDNs on change).
+    # No `always`, so a 404 for a missing ISO doesn't get this TTL.
+    location ~* \.iso$ {
+        add_header Cache-Control "public, max-age=15768000";
+    }
+
     # Immutable cache for RPMs
     location ~* \.rpm$ {
         add_header Cache-Control "public, max-age=31536000, immutable" always;

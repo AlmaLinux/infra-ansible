@@ -1,4 +1,14 @@
 ---
+# Defined before the reload/restart handlers so it runs first (handlers run in
+# definition order). A bad config fails the play and nginx keeps serving the
+# config it already has loaded.
+- name: Validate nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  listen:
+    - Reload nginx
+    - Restart nginx
+
 - name: Reload nginx
   ansible.builtin.systemd_service:
     name: nginx.service
