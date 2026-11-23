@@ -64,6 +64,9 @@ stg.git.almalinux.org
 gitea_prod
 gitea_stg
 
+[forgejo_runner]
+runner01-docker-x86-64.git.almalinux.org
+
 [matterbridge]
 matterbridge.almalinux.org
 

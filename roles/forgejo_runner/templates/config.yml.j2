@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+# Anything not set here takes the runner's built-in default; see
+# `forgejo-runner generate-config` for the full annotated list.
+runner:
+  # Credentials come only from server.connections below, and the runner refuses
+  # to start if a registration file exists as well. Pointing this into a
+  # root-owned directory means neither a stray `forgejo-runner register` nor a
+  # host job can create one.
+  file: {{ forgejo_runner_config | dirname }}/.runner
+  capacity: {{ forgejo_runner_capacity }}
+  # How long a stop or restart waits for a running job before cancelling it.
+  # The built-in default is 0, which cancels immediately.
+  shutdown_timeout: 3h
+  labels: {{ forgejo_runner_labels | to_json }}
+
+server:
+  # One per registration (org). All of them share the labels and capacity above.
+  connections:
+{% for name, conn in forgejo_runner_connections | dictsort %}
+    {{ name | to_json }}:
+      url: {{ forgejo_runner_instance_url | to_json }}
+      uuid: {{ conn.uuid | to_json }}
+      token: {{ conn.token | to_json }}
+{% endfor %}

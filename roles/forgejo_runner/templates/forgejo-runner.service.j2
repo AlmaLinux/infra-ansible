@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Forgejo Actions runner
+Documentation=https://forgejo.org/docs/latest/admin/actions/
+# The runner user's systemd instance, kept up by linger, owns the runtime
+# directory and session bus that rootless podman uses.
+Wants=network-online.target user@{{ forgejo_runner_account.uid }}.service
+After=network-online.target user@{{ forgejo_runner_account.uid }}.service
+
+[Service]
+User={{ forgejo_runner_user }}
+WorkingDirectory={{ forgejo_runner_home }}
+# A system unit with User= gets neither of these. Without them rootless podman
+# can't reach the user's systemd and falls back to cgroupfs, warning on every
+# call. Jobs on the host label inherit the runner's environment, so podman
+# inside a job picks these up too.
+Environment=XDG_RUNTIME_DIR=/run/user/{{ forgejo_runner_account.uid }}
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{{ forgejo_runner_account.uid }}/bus
+ExecStart=/usr/local/bin/forgejo-runner daemon -c {{ forgejo_runner_config }}
+# No ExecReload, unlike upstream's unit: the runner only handles INT and TERM,
+# so a HUP kills it outright, and systemd counts that as a clean exit and
+# doesn't restart it. Config is read once at start; changes need a restart.
+Restart=on-failure
+RestartSec=10
+# Let the runner's shutdown_timeout decide how long a running job gets to
+# finish when the service stops, rather than systemd's 90s default.
+TimeoutStopSec=infinity
+
+[Install]
+WantedBy=multi-user.target

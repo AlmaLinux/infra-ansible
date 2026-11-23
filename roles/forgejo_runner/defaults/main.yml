@@ -1,0 +1,43 @@
+---
+# forgejo-runner release. Forgejo's own v15 docs install runner v13, and
+# v13's breaking changes are all in workflow parsing and Docker handling;
+# none of them reach a runner that only offers host labels.
+forgejo_runner_version: 13.2.2
+
+forgejo_runner_user: forgejo-runner
+# Under /home rather than /var/lib so container-selinux's home directory
+# rules label ~/.local/share/containers the way rootless podman expects.
+forgejo_runner_home: /home/forgejo-runner
+
+# Outside the runner's home so host jobs, which run as the runner user, can
+# read the config but not rewrite it.
+forgejo_runner_config: /etc/forgejo-runner/config.yml
+
+forgejo_runner_instance_url: https://git.almalinux.org
+# One entry per registration the runner serves, keyed by a name that only
+# shows up in the runner's logs:
+#   forgejo_runner_connections:
+#     some-org: {uuid: ..., token: ...}
+# Each org that creates the runner in its own Actions settings gets its own
+# uuid/token pair. group_vars/forgejo_runner.yml builds this from vault.
+forgejo_runner_connections: {}
+
+# name:scheme. A bare "host" parses as a docker label running node:22-bookworm,
+# so the scheme has to be spelled out; workflows still say `runs-on: host`.
+forgejo_runner_labels:
+  - host:host
+# Shared across all connections: with 1, jobs from every org queue behind
+# each other on this runner.
+forgejo_runner_capacity: 1
+
+# Subordinate uid/gid range for rootless podman. useradd allocates these for
+# regular users but not for system ones. The default sits well clear of the
+# ranges useradd hands out from 100000 in 65536 steps, so it won't collide with
+# a cloud-init user. Changing it once podman has stored images means running
+# `podman system reset` as the runner user, since the existing layers are
+# owned by ids from the old range.
+forgejo_runner_subid_start: 1000000
+forgejo_runner_subid_count: 65536
+
+# systemd OnCalendar= for `podman system prune -af` as the runner user
+forgejo_runner_prune_schedule: daily

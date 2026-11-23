@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Prune {{ forgejo_runner_user }}'s podman images, containers and build cache
+Wants=user@{{ forgejo_runner_account.uid }}.service
+After=user@{{ forgejo_runner_account.uid }}.service
+
+[Service]
+Type=oneshot
+User={{ forgejo_runner_user }}
+WorkingDirectory={{ forgejo_runner_home }}
+# Same reason as in forgejo-runner.service
+Environment=XDG_RUNTIME_DIR=/run/user/{{ forgejo_runner_account.uid }}
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{{ forgejo_runner_account.uid }}/bus
+ExecStart=/usr/bin/podman system prune --all --force

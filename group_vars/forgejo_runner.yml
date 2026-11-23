@@ -1,0 +1,18 @@
+---
+hashi_vault_path: "kv/data/infra/forgejo_runner/{{ inventory_hostname }}"
+
+# The role's {name: {uuid, token}} map, built from forgejo_runner_orgs (set per
+# runner in host_vars) with one vault secret per org at
+# <hashi_vault_path>/<org>, keys `uuid` and `token`.
+forgejo_runner_connections: >-
+  {%- set ns = namespace(conns={}) -%}
+  {%- for org in forgejo_runner_orgs -%}
+  {%- set path = hashi_vault_path ~ '/' ~ org -%}
+  {%- set ns.conns = ns.conns | combine({org: {
+        'uuid': lookup('community.hashi_vault.hashi_vault', path ~ ':uuid',
+                       token=lookup('env', 'VAULT_TOKEN'), url=secrets_url),
+        'token': lookup('community.hashi_vault.hashi_vault', path ~ ':token',
+                        token=lookup('env', 'VAULT_TOKEN'), url=secrets_url),
+      }}) -%}
+  {%- endfor -%}
+  {{ ns.conns }}

@@ -1,0 +1,9 @@
+---
+- name: Configure Forgejo Actions runners
+  hosts: forgejo_runner
+  roles:
+    - common
+    - forgejo_runner
+    - community.zabbix.zabbix_agent
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
