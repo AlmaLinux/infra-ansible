@@ -30,6 +30,7 @@
     mode: "0644"
     owner: root
     group: root
+    validate: nginx -t -c %s
   notify: Reload nginx
   tags:
     - nginx
