@@ -116,6 +116,22 @@ almalinux_repo_mirror_mirage_config:
       type: fastly
       service_id: TlFupKxqyHcdiQXvV5fdR2
       purge_all_service_domains: true
+      # Keep the mirage_aliases edge dictionary (alias URL path -> real file
+      # URL path) in sync with the symlinks on disk, for these URL paths. A
+      # recv VCL snippet on the repo service rewrites req.url with it, so
+      # -latest- names and /<major>/ paths share the real file's cache entry.
+      # Requires the dictionary + snippet on the service, and global scope on
+      # the shared mirror_mirage_fastly_api_token.
+      # Preview on the host without writing anything:
+      #   sudo -u mirror-mirage /opt/mirror-mirage/venv/bin/mirror-mirage \
+      #     --config /etc/mirror-mirage/config.yaml --edge-aliases diff
+      edge_aliases:
+        dictionary: mirage_aliases
+        rules:
+          - name: isos
+            match: "almalinux/*/isos/*/*.iso"
+          - name: cloud-images
+            match: "almalinux/*/cloud/*/images/*"
     fastly_vault:
       type: fastly
       service_id: 5BnJwxmxD6Y1qgqrtHHRf1
@@ -170,6 +186,10 @@ almalinux_repo_mirror_mirage_config:
 # almalinux_repo_mirror_mirage_config.cdns. Each value is a Vault lookup.
 # Vault keys live under the same hashi_vault_path used for other repo secrets.
 almalinux_repo_mirror_mirage_secrets:
+  # One Fastly token for all three services. It needs global scope on the
+  # repo service because fastly_repo's edge_aliases writes the mirage_aliases
+  # dictionary; without it, purges still work and the dictionary sync logs
+  # event=edge_aliases_sync_failed (HTTP 401/403).
   fastly_repo:
     api_token: "{{ lookup('community.hashi_vault.hashi_vault', hashi_vault_path ~ ':mirror_mirage_fastly_api_token',
             token=lookup('env', 'VAULT_TOKEN'), url=secrets_url, errors='warn') }}"

@@ -144,17 +144,7 @@
   tags:
     - mirror_mirage
 
-- name: Write config.yaml
-  ansible.builtin.template:
-    src: mirror-mirage/config.yaml.j2
-    dest: /etc/mirror-mirage/config.yaml
-    owner: root
-    group: mirror-mirage
-    mode: "0640"
-  notify: Restart mirror-mirage
-  tags:
-    - mirror_mirage
-
+# Secrets go first so the config validation below can read them.
 - name: Write secrets.yaml
   ansible.builtin.template:
     src: mirror-mirage/secrets.yaml.j2
@@ -164,6 +154,23 @@
     mode: "0600"
   notify: Restart mirror-mirage
   no_log: true
+  tags:
+    - mirror_mirage
+
+# Validated with the just-installed mirror-mirage, so a config key the
+# installed version doesn't know (e.g. edge_aliases before upstream has it)
+# fails the play here instead of leaving the daemon crash-looping.
+- name: Write config.yaml
+  ansible.builtin.template:
+    src: mirror-mirage/config.yaml.j2
+    dest: /etc/mirror-mirage/config.yaml
+    owner: root
+    group: mirror-mirage
+    mode: "0640"
+    validate: >-
+      {{ almalinux_repo_mirror_mirage_venv_dir }}/bin/mirror-mirage
+      --config %s --secrets /etc/mirror-mirage/secrets.yaml --check
+  notify: Restart mirror-mirage
   tags:
     - mirror_mirage
 
