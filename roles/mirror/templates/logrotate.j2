@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+/var/log/rsyncd.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    # rsyncd reopens this log for every new connection, so rename rotation
+    # needs no restart. In-flight transfers keep writing to the rotated file
+    # until they finish; delaycompress leaves it uncompressed until the next
+    # run so those entries aren't lost.
+    delaycompress
+}
